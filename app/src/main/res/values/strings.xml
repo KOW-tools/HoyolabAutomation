@@ -1,0 +1,100 @@
+<resources>
+    <string name="app_name">Hoyolab Automation</string>
+
+    <!-- Home Screen -->
+    <string name="home_title">Hoyolab Automation</string>
+    <string name="content_desc_view_logs">View logs</string>
+    <string name="button_run_checkin_now">Run Now</string>
+    <string name="home_games">Games</string>
+    <string name="home_no_games_found">No supported games found</string>
+    <string name="home_loading_games">Loading games…</string>
+
+    <!-- Account Status -->
+    <string name="account_status_no_login">No account</string>
+    <string name="account_status_tap_to_login">Tap to login</string>
+    <string name="button_login_hoyolab">Login</string>
+    <string name="account_status_cookie_expired">Expired</string>
+    <string name="account_status_error_loading">Error</string>
+    <string name="button_logout">Logout</string>
+
+    <!-- Logout Dialog -->
+    <string name="dialog_logout_title">Confirm Logout</string>
+    <string name="dialog_logout_message">Are you sure you want to logout? This will stop all automatic check-ins.</string>
+    <string name="dialog_logout_confirm">Logout</string>
+    <string name="dialog_logout_cancel">Cancel</string>
+
+    <!-- Account Info Labels -->
+    <string name="label_email">Email</string>
+    <string name="label_games">Games</string>
+    <string name="label_games_found_format">%d found</string>
+    <string name="label_last_validated">Last Validated</string>
+    <string name="label_expires_in">Expiring In %s</string>
+
+    <!-- Expiration Time Formats -->
+    <string name="expires_unknown">Unknown</string>
+    <string name="expires_expired">Expired</string>
+    <string name="expires_days">%d days</string>
+    <string name="expires_one_day">1 day</string>
+    <string name="expires_hours">%d hours</string>
+    <string name="expires_less_than_hour">Less than 1 hour</string>
+
+    <!-- Game Role Info Labels -->
+    <string name="label_uid_format">UID: %s</string>
+
+    <!-- Logs Screen -->
+    <string name="logs_title">Check-In History</string>
+
+    <!-- Log Filters -->
+    <string name="filter_success">Success</string>
+    <string name="filter_failed">Failed</string>
+
+    <!-- Log Empty State -->
+    <string name="logs_empty_message">No logs yet</string>
+
+    <!-- Log Card -->
+    <string name="log_no_message">No message</string>
+    <string name="log_retcode_format">Code: %d</string>
+    
+    <!-- Log Messages -->
+    <string name="log_message_success">Check-in successful</string>
+    <string name="log_message_already_signed">Already signed in today</string>
+    <string name="log_message_cookie_expired">Cookie expired</string>
+    <string name="log_message_network_error">Network error</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Check-in Notifications</string>
+    <string name="notification_channel_description">Notifications for HoYoLab check-in results</string>
+
+    <!-- Notification Titles -->
+    <string name="notification_title_cookie_expired">Cookie Expired</string>
+    <string name="notification_title_network_error">Network Error</string>
+    <string name="notification_title_checkin_issues">Check-in Issues</string>
+    <string name="notification_title_checkin_complete">Check-in Complete</string>
+    <string name="notification_title_already_signed">Already Signed In</string>
+    <string name="notification_title_no_games">No Games Found</string>
+    <string name="notification_title_checkin_started">Check-in Started</string>
+
+    <!-- Notification Messages -->
+    <string name="notification_message_cookie_expired">Please log in again to continue check-ins</string>
+    <string name="notification_message_network_error">Failed to connect to HoYoLab servers</string>
+    <string name="notification_message_no_games">No supported games linked to your account</string>
+    <string name="notification_message_checkin_running">Running check-in for all games…</string>
+    <string name="notification_action_retry">Retry</string>
+
+    <!-- Notification Summary Messages -->
+    <string name="notification_summary_checked_in">%d checked in</string>
+    <string name="notification_summary_already_signed">%d already signed</string>
+    <string name="notification_summary_failed">%d failed</string>
+    <string name="notification_summary_network_error">%d network error</string>
+
+    <!-- Login Messages -->
+    <string name="toast_login_success">Login successful! Found %d games</string>
+    <string name="toast_login_failed">Failed to validate cookie: %s</string>
+
+    <!-- Setup Screen -->
+    <string name="setup_title">Setup</string>
+    <string name="setup_grant_notification">Grant Notifications</string>
+    <string name="setup_grant_autostart">Grant Autostart</string>
+    <string name="setup_disable_battery_optimization">Disable Battery Optimization</string>
+    <string name="setup_recommended">Recommended</string>
+</resources>
