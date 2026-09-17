@@ -10,6 +10,7 @@ import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.local.CheckInLog
 import cc.kowx712.autohoyolab.data.model.CheckInResult
 import cc.kowx712.autohoyolab.data.model.HoyoGame
+import cc.kowx712.autohoyolab.data.model.HoyoGameRole
 import cc.kowx712.autohoyolab.network.HoyolabApiClient
 import cc.kowx712.autohoyolab.notification.CheckInNotifier
 import kotlinx.coroutines.delay
@@ -96,7 +97,7 @@ class CheckInWorker(
         Log.d(TAG, "Found ${gameRoles.size} game roles")
 
         // Map to supported games
-        val gamesToCheckIn = gameRoles
+        val allGameProfiles = gameRoles
             .mapNotNull { role ->
                 val game = HoyoGame.fromGameBiz(role.gameBiz)
                 if (game != null) {
@@ -106,7 +107,40 @@ class CheckInWorker(
                     null
                 }
             }
-            .distinctBy { it.first.id }
+
+        // Group by game to handle multiple servers
+        val gamesByGameId = allGameProfiles.groupBy { it.first.id }
+
+        // Load user preferences
+        val preferences = database.gameProfilePreferenceDao().getAllPreferences()
+        val preferenceMap = preferences.associate { it.gameId to it.selectedGameUid }
+
+        // Select one profile per game based on preference or priority
+        val gamesToCheckIn = gamesByGameId.mapNotNull { (gameId, profiles) ->
+            if (profiles.isEmpty()) return@mapNotNull null
+
+            val selected = if (profiles.size == 1) {
+                // Only one server, use it
+                profiles.first()
+            } else {
+                // Multiple servers: check preference first
+                val preferredUid = preferenceMap[gameId]
+                if (preferredUid != null) {
+                    // User has preference, use it
+                    profiles.firstOrNull { it.second.gameUid == preferredUid }
+                        ?: run {
+                            Log.w(TAG, "Preferred profile $preferredUid not found for $gameId, using priority fallback")
+                            selectByPriority(profiles)
+                        }
+                } else {
+                    // No preference: use highest level, or first if tie
+                    selectByPriority(profiles)
+                }
+            }
+
+            Log.d(TAG, "Selected ${selected.first.displayName} - ${selected.second.regionName} (Lv.${selected.second.level})")
+            selected
+        }
 
         if (gamesToCheckIn.isEmpty()) {
             Log.w(TAG, "No supported games found")
@@ -118,7 +152,7 @@ class CheckInWorker(
         // Perform check-ins
         val results = mutableListOf<CheckInResult>()
         for ((game, role) in gamesToCheckIn) {
-            Log.d(TAG, "Checking in for ${game.displayName}...")
+            Log.d(TAG, "Checking in for ${game.displayName} - ${role.regionName} (Lv.${role.level})...")
             val result = apiClient.checkIn(game)
             results.add(result)
 
@@ -168,6 +202,11 @@ class CheckInWorker(
 
         Log.d(TAG, "CheckInWorker completed")
         return Result.success()
+    }
+
+    private fun selectByPriority(profiles: List<Pair<HoyoGame, HoyoGameRole>>): Pair<HoyoGame, HoyoGameRole> {
+        // Priority: highest level > first occurrence
+        return profiles.maxByOrNull { it.second.level } ?: profiles.first()
     }
 
     companion object {

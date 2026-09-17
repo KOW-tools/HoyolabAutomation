@@ -41,6 +41,9 @@ class HomeViewModel(
     private val _lastLogs = MutableStateFlow<Map<String, String>>(emptyMap())
     val lastLogs: StateFlow<Map<String, String>> = _lastLogs.asStateFlow()
 
+    private val _selectedProfiles = MutableStateFlow<Map<String, String>>(emptyMap()) // gameId -> gameUid
+    val selectedProfiles: StateFlow<Map<String, String>> = _selectedProfiles.asStateFlow()
+
     init {
         loadAccountInfo()
     }
@@ -117,6 +120,29 @@ class HomeViewModel(
 
                     _gameRoles.value = mappedGames
 
+                    // Load preferences from database
+                    val preferences = withContext(Dispatchers.IO) {
+                        database.gameProfilePreferenceDao().getAllPreferences()
+                    }
+                    val preferenceMap = preferences.associate { it.gameId to it.selectedGameUid }
+
+                    // If no preferences set, auto-select highest level for games with multiple servers
+                    val gamesById = mappedGames.groupBy { it.first.id }
+                    val autoSelectedMap = mutableMapOf<String, String>()
+
+                    gamesById.forEach { (gameId, profiles) ->
+                        if (profiles.size > 1) {
+                            // Check if user has preference
+                            if (!preferenceMap.containsKey(gameId)) {
+                                // Auto-select highest level, or first if tie
+                                val selected = profiles.maxByOrNull { it.second.level } ?: profiles.first()
+                                autoSelectedMap[gameId] = selected.second.gameUid
+                            }
+                        }
+                    }
+
+                    _selectedProfiles.value = preferenceMap + autoSelectedMap
+
                     // Load last logs for each game
                     val logs = mutableMapOf<String, String>()
                     withContext(Dispatchers.IO) {
@@ -160,8 +186,14 @@ class HomeViewModel(
         pruneWebViewData()
 
         cookieStore.clear()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                database.gameProfilePreferenceDao().clearAll()
+            }
+        }
         _accountInfo.value = AccountState.NoCookie
         _gameRoles.value = null
+        _selectedProfiles.value = emptyMap()
     }
 
     fun relogin() {
@@ -182,6 +214,21 @@ class HomeViewModel(
     private fun formatDate(timestamp: Long): String {
         val sdf = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault())
         return sdf.format(java.util.Date(timestamp))
+    }
+
+    fun selectProfile(gameId: String, gameUid: String, region: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                database.gameProfilePreferenceDao().savePreference(
+                    cc.kowx712.autohoyolab.data.local.GameProfilePreference(
+                        gameId = gameId,
+                        selectedRegion = region,
+                        selectedGameUid = gameUid
+                    )
+                )
+            }
+            _selectedProfiles.value = _selectedProfiles.value + (gameId to gameUid)
+        }
     }
 }
 

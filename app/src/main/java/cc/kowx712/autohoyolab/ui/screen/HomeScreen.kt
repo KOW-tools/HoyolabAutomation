@@ -102,6 +102,7 @@ fun HomeScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val isLoadingGames by viewModel.isLoadingGames.collectAsStateWithLifecycle()
     val lastLogs by viewModel.lastLogs.collectAsStateWithLifecycle()
+    val selectedProfiles by viewModel.selectedProfiles.collectAsStateWithLifecycle()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -231,13 +232,23 @@ fun HomeScreen(
                         )
                     }
 
+                    // Group games by gameId to detect multiple servers
+                    val gamesById = gameRoles!!.groupBy { it.first.id }
+
                     items(gameRoles!!) { (game, role) ->
-                        val index = gameRoles!!.indexOf(game to role)
+                        val gameId = game.id
+                        val profiles = gamesById[gameId] ?: listOf(game to role)
+                        val hasMultipleServers = profiles.size > 1
+                        val globalIndex = gameRoles!!.indexOf(game to role)
+
                         GameRoleCard(
                             role = role,
-                            index = index,
+                            index = globalIndex,
                             count = gameRoles!!.size,
                             lastLog = lastLogs[game.id],
+                            hasMultipleServers = hasMultipleServers,
+                            isSelected = selectedProfiles[gameId] == role.gameUid,
+                            onSelectProfile = { viewModel.selectProfile(gameId, role.gameUid, role.region) },
                             onClick = { }
                         )
                     }
@@ -449,6 +460,9 @@ fun GameRoleCard(
     index: Int,
     count: Int,
     lastLog: String?,
+    hasMultipleServers: Boolean,
+    isSelected: Boolean,
+    onSelectProfile: () -> Unit,
     onClick: () -> Unit
 ) {
     val game = HoyoGame.fromGameBiz(role.gameBiz)
@@ -469,6 +483,14 @@ fun GameRoleCard(
                 contentScale = ContentScale.Crop
             )
         },
+        trailingContent = if (hasMultipleServers) {
+            {
+                androidx.compose.material3.RadioButton(
+                    selected = isSelected,
+                    onClick = onSelectProfile
+                )
+            }
+        } else null,
         supportingContent = {
             Column {
                 Text(
