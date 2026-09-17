@@ -1,6 +1,12 @@
+<div align="center">
+
+<img src="HoyolabAutomation.svg" alt="Hoyolab Automation" style="width: 256px;"/>
+
 # Hoyolab Automation
 
 An Android app to automate your daily HoYoLAB check-ins.
+
+</div>
 
 ## Supported Games
 
