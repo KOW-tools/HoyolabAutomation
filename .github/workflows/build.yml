@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "**"
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      release-artifact-id: ${{ steps.upload-release-apk.outputs.artifact-id }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up signing
+        run: |
+          echo "KEY_STORE_FILE=$(pwd)/key.jks" > keystore.properties
+          echo "KEY_STORE_PASSWORD=${{ secrets.KEY_STORE_PASSWORD }}" >> keystore.properties
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+          echo "${{ secrets.KEYSTORE }}" | base64 -d > key.jks
+
+      - name: Build release APK
+        run: chmod +x gradlew && ./gradlew assembleRelease
+
+      - name: Upload release APK
+        id: upload-release-apk
+        uses: actions/upload-artifact@v7
+        with:
+          path: app/build/outputs/apk/release/*.apk
+          archive: false
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release APK
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.release-artifact-id }}
+          path: release
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: release/*.apk
