@@ -14,7 +14,6 @@ import androidx.core.content.edit
 import cc.kowx712.autohoyolab.ui.navigation.AppNavGraph
 import cc.kowx712.autohoyolab.ui.navigation.Home
 import cc.kowx712.autohoyolab.ui.navigation.IntentDispatcher
-import cc.kowx712.autohoyolab.ui.navigation.Logs
 import cc.kowx712.autohoyolab.ui.navigation.Setup
 import cc.kowx712.autohoyolab.ui.navigation.rememberNavigator
 import cc.kowx712.autohoyolab.ui.theme.HoyolabAutomationTheme
@@ -60,14 +59,14 @@ class MainActivity : ComponentActivity() {
                 val setupComplete = prefs.getBoolean("setup_complete", false)
 
                 val intentDestination = IntentDispatcher.getDestinationFromIntent(intent)
-                
+
                 val startDestination = when {
                     setupComplete -> Home
                     else -> Setup
                 }
-                
+
                 val navigator = rememberNavigator(startDestination)
-                
+
                 if (intentDestination != null && intentDestination != startDestination) {
                     LaunchedEffect(Unit) {
                         navigator.push(intentDestination)

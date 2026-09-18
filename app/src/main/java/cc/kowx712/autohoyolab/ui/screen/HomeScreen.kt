@@ -39,6 +39,7 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.Text
@@ -483,14 +484,14 @@ fun GameRoleCard(
                 contentScale = ContentScale.Crop
             )
         },
-        trailingContent = if (hasMultipleServers) {
-            {
-                androidx.compose.material3.RadioButton(
+        trailingContent = {
+            if (hasMultipleServers) {
+                RadioButton(
                     selected = isSelected,
                     onClick = onSelectProfile
                 )
             }
-        } else null,
+        },
         supportingContent = {
             Column {
                 Text(
