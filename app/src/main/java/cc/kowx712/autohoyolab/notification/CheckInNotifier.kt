@@ -6,8 +6,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import cc.kowx712.autohoyolab.R
 import cc.kowx712.autohoyolab.data.model.CheckInResult
+import cc.kowx712.autohoyolab.ui.MainActivity
+import cc.kowx712.autohoyolab.ui.navigation.IntentDispatcher
+import cc.kowx712.autohoyolab.ui.navigation.Logs
+import cc.kowx712.autohoyolab.ui.navigation.Setup
 import cc.kowx712.autohoyolab.worker.CheckInWorker
 
 class CheckInNotifier(private val context: Context) {
@@ -62,30 +67,66 @@ class CheckInNotifier(private val context: Context) {
             }
         }
 
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            data = IntentDispatcher.createDeeplinkUri(Logs).toUri()
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            1,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .build()
 
         notificationManager.notify(NOTIFICATION_ID_SUMMARY, notification)
     }
 
     fun showCookieExpiredNotification() {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            data = IntentDispatcher.createDeeplinkUri(Setup).toUri()
+            putExtra("action", "cookie_expired")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title_cookie_expired))
             .setContentText(context.getString(R.string.notification_message_cookie_expired))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .build()
 
         notificationManager.notify(NOTIFICATION_ID_COOKIE_EXPIRED, notification)
     }
 
     fun showNetworkErrorNotification() {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            data = IntentDispatcher.createDeeplinkUri(Logs).toUri()
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            2,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val retryIntent = Intent(context, CheckInWorker::class.java)
         val retryPendingIntent = PendingIntent.getService(
             context,
@@ -100,8 +141,9 @@ class CheckInNotifier(private val context: Context) {
             .setContentText(context.getString(R.string.notification_message_network_error))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .addAction(
-                R.drawable.ic_notification,
+                R.drawable.ic_notification_refresh,
                 context.getString(R.string.notification_action_retry),
                 retryPendingIntent
             )
