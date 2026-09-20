@@ -4,13 +4,13 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import cc.kowx712.autohoyolab.R
 import cc.kowx712.autohoyolab.data.cookie.CookieStore
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.local.CheckInLog
 import cc.kowx712.autohoyolab.data.model.CheckInResult
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
+import cc.kowx712.autohoyolab.data.model.ResignResult
 import cc.kowx712.autohoyolab.network.HoyolabApiClient
 import cc.kowx712.autohoyolab.notification.CheckInNotifier
 import kotlinx.coroutines.delay
@@ -151,6 +151,7 @@ class CheckInWorker(
 
         // Perform check-ins
         val results = mutableListOf<CheckInResult>()
+        val resignResults = mutableListOf<ResignResult>()
         for ((game, role) in gamesToCheckIn) {
             Log.d(TAG, "Checking in for ${game.displayName} - ${role.regionName} (Lv.${role.level})...")
             val result = apiClient.checkIn(game)
@@ -173,10 +174,7 @@ class CheckInWorker(
                 status = status,
                 message = when (result) {
                     is CheckInResult.Failed -> result.message
-                    is CheckInResult.Success -> applicationContext.getString(R.string.log_message_success)
-                    is CheckInResult.AlreadySigned -> applicationContext.getString(R.string.log_message_already_signed)
-                    is CheckInResult.CookieExpired -> applicationContext.getString(R.string.log_message_cookie_expired)
-                    is CheckInResult.NetworkError -> applicationContext.getString(R.string.log_message_network_error)
+                    else -> null
                 },
                 retcode = when (result) {
                     is CheckInResult.Failed -> result.retcode
@@ -186,6 +184,66 @@ class CheckInWorker(
 
             database.checkInLogDao().insert(log)
             Log.d(TAG, "Result for ${game.displayName}: $status")
+
+            // Add delay between requests
+            delay(2.seconds)
+
+            // Attempt resign after check-in
+            Log.d(TAG, "Attempting resign for ${game.displayName}...")
+            val resignResult = apiClient.resign(game)
+            resignResults.add(resignResult)
+
+            val resignStatus = when (resignResult) {
+                is ResignResult.Success -> {
+                    Log.d(TAG, "Resign successful for ${game.displayName}")
+                    "RESIGN_SUCCESS"
+                }
+
+                is ResignResult.NotSupported -> {
+                    Log.d(TAG, "Resign not supported for ${game.displayName}")
+                    "RESIGN_NOT_SUPPORTED"
+                }
+
+                is ResignResult.NotEligible -> {
+                    Log.d(TAG, "Resign not eligible for ${game.displayName}: ${resignResult.reason}")
+                    "RESIGN_NOT_ELIGIBLE"
+                }
+
+                is ResignResult.Failed -> {
+                    Log.d(TAG, "Resign failed for ${game.displayName}: ${resignResult.message}")
+                    "RESIGN_FAILED"
+                }
+
+                is ResignResult.CookieExpired -> {
+                    Log.e(TAG, "Cookie expired during resign for ${game.displayName}")
+                    "RESIGN_COOKIE_EXPIRED"
+                }
+
+                is ResignResult.NetworkError -> {
+                    Log.e(TAG, "Network error during resign for ${game.displayName}")
+                    "RESIGN_NETWORK_ERROR"
+                }
+            }
+
+            if (resignResult !is ResignResult.NotSupported && resignResult !is ResignResult.NotEligible) {
+                val resignLog = CheckInLog(
+                    gameId = game.id,
+                    gameUid = role.gameUid,
+                    region = role.region,
+                    timestamp = System.currentTimeMillis(),
+                    status = resignStatus,
+                    message = when (resignResult) {
+                        is ResignResult.Failed -> resignResult.message
+                        else -> null
+                    },
+                    retcode = when (resignResult) {
+                        is ResignResult.Failed -> resignResult.retcode
+                        else -> null
+                    }
+                )
+
+                database.checkInLogDao().insert(resignLog)
+            }
 
             // Add delay between requests
             delay(2.seconds)

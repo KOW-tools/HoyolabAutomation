@@ -4,6 +4,7 @@ import cc.kowx712.autohoyolab.data.model.CheckInResult
 import cc.kowx712.autohoyolab.data.model.HoyoAccount
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
+import cc.kowx712.autohoyolab.data.model.ResignResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -56,6 +57,33 @@ class HoyolabApiClient(private val cookie: String) {
     @Serializable
     private data class EmptyData(
         val dummy: String? = null
+    )
+
+    @Serializable
+    private data class ResignInfoData(
+        @SerialName("resign_cnt_daily") val resignCntDaily: Int = 0,
+        @SerialName("resign_cnt_monthly") val resignCntMonthly: Int = 0,
+        @SerialName("resign_limit_daily") val resignLimitDaily: Int = 0,
+        @SerialName("resign_limit_monthly") val resignLimitMonthly: Int = 0,
+        @SerialName("sign_cnt_missed") val signCntMissed: Int = 0,
+        @SerialName("quality_cnt") val qualityCnt: Int = 0,
+        @SerialName("signed") val signed: Boolean = false,
+        @SerialName("sign_cnt") val signCnt: Int = 0,
+        @SerialName("cost") val cost: Int = 0,
+        @SerialName("month_quality_cnt") val monthQualityCnt: Int = 0
+    )
+
+    @Serializable
+    private data class TaskListData(
+        val total: Int = 0,
+        val list: List<TaskItem> = emptyList()
+    )
+
+    @Serializable
+    private data class TaskItem(
+        val id: Int,
+        val name: String = "",
+        val status: String = ""
     )
 
     class CookieExpiredException(message: String) : Exception(message)
@@ -191,6 +219,194 @@ class HoyolabApiClient(private val cookie: String) {
             CheckInResult.NetworkError(game.id)
         } catch (e: Exception) {
             CheckInResult.Failed(game.id, e.message ?: "Unknown error", null)
+        }
+    }
+
+    suspend fun resign(game: HoyoGame): ResignResult = withContext(Dispatchers.IO) {
+        try {
+            // First, check resign eligibility
+            val resignInfoRequest = Request.Builder()
+                .url(game.resignInfoUrl)
+                .headers(buildHeaders())
+                .get()
+                .build()
+
+            val resignInfoResponse = client.newCall(resignInfoRequest).execute()
+            val resignInfoBody = resignInfoResponse.body.string()
+
+            // HTTP errors or non-zero retcode means resign is not supported for this game
+            if (!resignInfoResponse.isSuccessful) {
+                return@withContext ResignResult.NotSupported(game.id)
+            }
+
+            val resignInfoApiResponse = json.decodeFromString<ApiResponse<ResignInfoData>>(resignInfoBody)
+
+            // Check for cookie expiration
+            if (resignInfoApiResponse.retcode == -100 || resignInfoApiResponse.retcode == -1000) {
+                return@withContext ResignResult.CookieExpired(game.id)
+            }
+
+            // Non-zero retcode means resign is not supported for this game
+            if (resignInfoApiResponse.retcode != 0) {
+                return@withContext ResignResult.NotSupported(game.id)
+            }
+
+            val resignInfo = resignInfoApiResponse.data ?: return@withContext ResignResult.Failed(
+                game.id,
+                "Missing resign info data",
+                null
+            )
+
+            // Check eligibility conditions
+            if (resignInfo.signCntMissed <= 0) {
+                return@withContext ResignResult.NotEligible(game.id, "No missed check-ins")
+            }
+
+            if (resignInfo.resignCntDaily >= resignInfo.resignLimitDaily) {
+                return@withContext ResignResult.NotEligible(game.id, "Daily resign limit reached")
+            }
+
+            if (resignInfo.resignCntMonthly >= resignInfo.resignLimitMonthly) {
+                return@withContext ResignResult.NotEligible(game.id, "Monthly resign limit reached")
+            }
+
+            // Check if we need to complete tasks first
+            if (resignInfo.monthQualityCnt < resignInfo.resignLimitMonthly) {
+                // Need to complete tasks to qualify - fetch task list first
+                val taskListRequest = Request.Builder()
+                    .url(game.taskListUrl)
+                    .headers(buildHeaders())
+                    .get()
+                    .build()
+
+                val taskListResponse = client.newCall(taskListRequest).execute()
+                val taskListBody = taskListResponse.body.string()
+
+                if (!taskListResponse.isSuccessful) {
+                    return@withContext ResignResult.Failed(
+                        game.id,
+                        "HTTP ${taskListResponse.code}",
+                        taskListResponse.code
+                    )
+                }
+
+                val taskListApiResponse = json.decodeFromString<ApiResponse<TaskListData>>(taskListBody)
+
+                if (taskListApiResponse.retcode != 0) {
+                    return@withContext ResignResult.Failed(
+                        game.id,
+                        "Task list fetch failed: ${taskListApiResponse.message}",
+                        taskListApiResponse.retcode
+                    )
+                }
+
+                // Find a task with status "TT_Ready"
+                val readyTask = taskListApiResponse.data?.list?.firstOrNull { it.status == "TT_Ready" }
+                    ?: return@withContext ResignResult.Failed(
+                        game.id,
+                        "No ready tasks available",
+                        null
+                    )
+
+                // Complete the task
+                val completeRequestBody = """{"id":${readyTask.id},"lang":"en-us","act_id":"${game.actId}"}"""
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val completeRequest = Request.Builder()
+                    .url(game.taskCompleteUrl)
+                    .headers(buildHeaders())
+                    .post(completeRequestBody)
+                    .build()
+
+                val completeResponse = client.newCall(completeRequest).execute()
+                val completeBody = completeResponse.body.string()
+
+                if (!completeResponse.isSuccessful) {
+                    return@withContext ResignResult.Failed(
+                        game.id,
+                        "HTTP ${completeResponse.code}",
+                        completeResponse.code
+                    )
+                }
+
+                val completeApiResponse = json.decodeFromString<ApiResponse<EmptyData>>(completeBody)
+
+                if (completeApiResponse.retcode != 0) {
+                    return@withContext ResignResult.Failed(
+                        game.id,
+                        "Complete task failed: ${completeApiResponse.message}",
+                        completeApiResponse.retcode
+                    )
+                }
+
+                // Get award
+                val awardRequestBody = """{"act_id":"${game.actId}","lang":"en-us","id":${readyTask.id}}"""
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val awardRequest = Request.Builder()
+                    .url(game.taskAwardUrl)
+                    .headers(buildHeaders())
+                    .post(awardRequestBody)
+                    .build()
+
+                val awardResponse = client.newCall(awardRequest).execute()
+                val awardBody = awardResponse.body.string()
+
+                if (!awardResponse.isSuccessful) {
+                    return@withContext ResignResult.Failed(
+                        game.id,
+                        "HTTP ${awardResponse.code}",
+                        awardResponse.code
+                    )
+                }
+
+                val awardApiResponse = json.decodeFromString<ApiResponse<EmptyData>>(awardBody)
+
+                if (awardApiResponse.retcode != 0) {
+                    return@withContext ResignResult.Failed(
+                        game.id,
+                        "Award claim failed: ${awardApiResponse.message}",
+                        awardApiResponse.retcode
+                    )
+                }
+            }
+
+            // Now perform resign
+            val resignRequestBody = """{"act_id":"${game.actId}"}"""
+                .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+            val resignRequest = Request.Builder()
+                .url(game.resignUrl)
+                .headers(buildHeaders())
+                .post(resignRequestBody)
+                .build()
+
+            val resignResponse = client.newCall(resignRequest).execute()
+            val resignBody = resignResponse.body.string()
+
+            if (!resignResponse.isSuccessful) {
+                return@withContext ResignResult.Failed(
+                    game.id,
+                    "HTTP ${resignResponse.code}",
+                    resignResponse.code
+                )
+            }
+
+            val resignApiResponse = json.decodeFromString<ApiResponse<EmptyData>>(resignBody)
+
+            when (resignApiResponse.retcode) {
+                0 -> ResignResult.Success(game.id)
+                -100, -1000 -> ResignResult.CookieExpired(game.id)
+                else -> ResignResult.Failed(
+                    game.id,
+                    resignApiResponse.message,
+                    resignApiResponse.retcode
+                )
+            }
+        } catch (_: IOException) {
+            ResignResult.NetworkError(game.id)
+        } catch (e: Exception) {
+            ResignResult.Failed(game.id, e.message ?: "Unknown error", null)
         }
     }
 

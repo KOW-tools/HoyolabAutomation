@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.SignalWifiStatusbarConnectedNoInternet4
+import androidx.compose.material.icons.filled.SignalWifiBad
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuGroup
@@ -193,7 +193,11 @@ fun LogCard(log: CheckInLog, index: Int, count: Int) {
         "ALREADY_SIGNED" -> Icons.Default.Done to MaterialTheme.colorScheme.tertiary
         "FAILED" -> Icons.Default.Error to MaterialTheme.colorScheme.error
         "COOKIE_EXPIRED" -> Icons.Default.Warning to MaterialTheme.colorScheme.error
-        "NETWORK_ERROR" -> Icons.Default.SignalWifiStatusbarConnectedNoInternet4 to MaterialTheme.colorScheme.error
+        "NETWORK_ERROR" -> Icons.Default.SignalWifiBad to MaterialTheme.colorScheme.error
+        "RESIGN_SUCCESS" -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
+        "RESIGN_FAILED" -> Icons.Default.Error to MaterialTheme.colorScheme.error
+        "RESIGN_COOKIE_EXPIRED" -> Icons.Default.Warning to MaterialTheme.colorScheme.error
+        "RESIGN_NETWORK_ERROR" -> Icons.Default.SignalWifiBad to MaterialTheme.colorScheme.error
         else -> Icons.Default.Info to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val icon = iconData.first
@@ -254,7 +258,19 @@ fun LogCard(log: CheckInLog, index: Int, count: Int) {
             }
         },
         content = {
-            Text(log.message ?: stringResource(R.string.log_no_message))
+            val displayMessage = when (log.status) {
+                "SUCCESS" -> stringResource(R.string.log_message_success)
+                "ALREADY_SIGNED" -> stringResource(R.string.log_message_already_signed)
+                "FAILED" -> log.message ?: stringResource(R.string.log_message_failed)
+                "COOKIE_EXPIRED" -> stringResource(R.string.log_message_cookie_expired)
+                "NETWORK_ERROR" -> stringResource(R.string.log_message_network_error)
+                "RESIGN_SUCCESS" -> stringResource(R.string.log_message_resign_success)
+                "RESIGN_FAILED" -> log.message ?: stringResource(R.string.log_message_resign_failed)
+                "RESIGN_COOKIE_EXPIRED" -> stringResource(R.string.log_message_cookie_expired)
+                "RESIGN_NETWORK_ERROR" -> stringResource(R.string.log_message_network_error)
+                else -> log.message ?: stringResource(R.string.log_no_message)
+            }
+            Text(displayMessage)
         }
     )
 }

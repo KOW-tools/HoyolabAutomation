@@ -58,8 +58,11 @@
     <!-- Log Messages -->
     <string name="log_message_success">Check-in successful</string>
     <string name="log_message_already_signed">Already signed in today</string>
+    <string name="log_message_failed">Check-in failed</string>
     <string name="log_message_cookie_expired">Cookie expired</string>
     <string name="log_message_network_error">Network error</string>
+    <string name="log_message_resign_success">Resign completed successfully</string>
+    <string name="log_message_resign_failed">Resign failed</string>
 
     <!-- Notifications -->
     <string name="notification_channel_name">Check-in Notifications</string>

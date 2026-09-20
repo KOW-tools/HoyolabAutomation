@@ -14,7 +14,24 @@ sealed class HoyoGame(
         get() = "https://sg-act-public-api.hoyolab.com$filePath/info?act_id=$actId"
 
     val signUrl
-        get() = "https://sg-act-public-api.hoyolab.com$filePath/sign?act_id=$actId"
+        get() = "https://sg-act-public-api.hoyolab.com$filePath/sign"
+
+    // Resign
+    val resignInfoUrl
+        get() = "https://sg-act-public-api.hoyolab.com$filePath/resign_info?act_id=$actId"
+
+    val resignUrl
+        get() = "https://sg-act-public-api.hoyolab.com$filePath/resign"
+
+    // Resign task
+    val taskListUrl
+        get() = "https://sg-act-public-api.hoyolab.com$filePath/task/list?act_id=$actId"
+
+    val taskCompleteUrl
+        get() = "https://sg-act-public-api.hoyolab.com$filePath/task/complete"
+
+    val taskAwardUrl
+        get() = "https://sg-act-public-api.hoyolab.com$filePath/task/award"
 
     data object GenshinImpact :
         HoyoGame("hk4e_global", "Genshin Impact", "/event/sol", "e202102251931481", R.drawable.img_hk4e_global)

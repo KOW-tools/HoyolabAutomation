@@ -147,12 +147,11 @@ class HomeViewModel(
                     val logs = mutableMapOf<String, String>()
                     withContext(Dispatchers.IO) {
                         mappedGames.forEach { (game, _) ->
-                            val log = database.checkInLogDao().getLastLogForGame(game.id)
+                            val log = database.checkInLogDao().getLastCheckInLogForGame(game.id)
                             if (log != null) {
-                                logs[game.id] = if (log.status == "SUCCESS" || log.status == "ALREADY_SIGNED") {
-                                    formatDate(log.timestamp)
-                                } else {
-                                    log.message ?: "Error"
+                                logs[game.id] = when (log.status) {
+                                    "SUCCESS", "ALREADY_SIGNED" -> formatDate(log.timestamp)
+                                    else -> log.message ?: "Error"
                                 }
                             }
                         }
