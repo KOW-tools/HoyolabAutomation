@@ -7,10 +7,11 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.edit
+import cc.kowx712.autohoyolab.ui.component.ExpressiveScaffold
 import cc.kowx712.autohoyolab.ui.navigation.AppNavGraph
 import cc.kowx712.autohoyolab.ui.navigation.Home
 import cc.kowx712.autohoyolab.ui.navigation.IntentDispatcher
@@ -73,7 +74,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Scaffold { AppNavGraph(navigator = navigator) }
+                ExpressiveScaffold(
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0)
+                ) { AppNavGraph(navigator = navigator) }
             }
         }
     }
