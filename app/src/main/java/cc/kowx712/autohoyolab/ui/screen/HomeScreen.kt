@@ -1,8 +1,8 @@
 package cc.kowx712.autohoyolab.ui.screen
 
-import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -59,7 +59,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,7 +84,6 @@ import cc.kowx712.autohoyolab.R
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
 import cc.kowx712.autohoyolab.notification.CheckInNotifier
-import cc.kowx712.autohoyolab.ui.WebViewActivity
 import cc.kowx712.autohoyolab.ui.component.ExpressiveScaffold
 import cc.kowx712.autohoyolab.ui.component.defaultSegmentedColors
 import cc.kowx712.autohoyolab.ui.component.defaultSegmentedShape
@@ -101,7 +100,9 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onNavigateToLogs: () -> Unit
+    onNavigateToLogs: () -> Unit,
+    onNavigateToSetup: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -117,14 +118,16 @@ fun HomeScreen(
 
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // Reload account info when screen resumes (e.g., returning from WebViewActivity)
-    LaunchedEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.loadAccountInfo()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     ExpressiveScaffold(
@@ -147,7 +150,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding),
             isRefreshing = isRefreshing,
-            onRefresh = { viewModel.loadAccountInfo() },
+            onRefresh = { viewModel.loadAccountInfo(force = true) },
             state = pullToRefreshState,
             indicator = {
                 PullToRefreshDefaults.LoadingIndicator(
@@ -174,10 +177,8 @@ fun HomeScreen(
                 item {
                     AccountStatusCard(
                         accountState = accountInfo,
-                        onLoginClick = {
-                            context.startActivity(Intent(context, WebViewActivity::class.java))
-                        },
-                        onRefreshClick = { viewModel.loadAccountInfo() },
+                        onNavigateToSetup = onNavigateToSetup,
+                        onRefreshClick = { viewModel.loadAccountInfo(force = true) },
                         onRunNowClick = {
                             val workRequest = OneTimeWorkRequestBuilder<CheckInWorker>().build()
                             WorkManager.getInstance(context).enqueue(workRequest)
@@ -185,9 +186,6 @@ fun HomeScreen(
                         },
                         onLogoutClick = {
                             showLogoutDialog = true
-                        },
-                        onReloginClick = {
-                            viewModel.relogin()
                         }
                     )
                 }
@@ -254,22 +252,27 @@ fun HomeScreen(
                     // Group games by gameId to detect multiple servers
                     val gamesById = gameRoles!!.groupBy { it.first.id }
 
-                    items(gameRoles!!) { (game, role) ->
+                    itemsIndexed(gameRoles!!) { index, (game, role) ->
                         val gameId = game.id
                         val profiles = gamesById[gameId] ?: listOf(game to role)
                         val hasMultipleServers = profiles.size > 1
-                        val globalIndex = gameRoles!!.indexOf(game to role)
 
-                        GameRoleCard(
-                            role = role,
-                            index = globalIndex,
-                            count = gameRoles!!.size,
-                            lastLog = lastLogs[game.id],
-                            hasMultipleServers = hasMultipleServers,
-                            isSelected = selectedProfiles[gameId] == role.gameUid,
-                            onSelectProfile = { viewModel.selectProfile(gameId, role.gameUid, role.region) },
-                            onClick = { }
-                        )
+                        Box(
+                            modifier = Modifier.padding(
+                                top = if (index == 0) 0.dp else ListItemDefaults.SegmentedGap
+                            )
+                        ) {
+                            GameRoleCard(
+                                role = role,
+                                index = index,
+                                count = gameRoles!!.size,
+                                lastLog = lastLogs[game.id],
+                                hasMultipleServers = hasMultipleServers,
+                                isSelected = selectedProfiles[gameId] == role.gameUid,
+                                onSelectProfile = { viewModel.selectProfile(gameId, role.gameUid, role.region) },
+                                onClick = { }
+                            )
+                        }
                     }
                 }
             }
@@ -283,6 +286,7 @@ fun HomeScreen(
                 showLogoutDialog = false
                 viewModel.logout()
                 AlarmScheduler.cancelAlarm(context)
+                onLogout()
             }
         )
     }
@@ -291,11 +295,10 @@ fun HomeScreen(
 @Composable
 fun AccountStatusCard(
     accountState: AccountState,
-    onLoginClick: () -> Unit,
+    onNavigateToSetup: () -> Unit,
     onRefreshClick: () -> Unit,
     onRunNowClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    onReloginClick: () -> Unit
+    onLogoutClick: () -> Unit
 ) {
     when (accountState) {
         is AccountState.Loading -> {
@@ -326,7 +329,7 @@ fun AccountStatusCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(CircleShape),
-                onClick = onLoginClick
+                onClick = onNavigateToSetup
             )
         }
 
@@ -349,7 +352,7 @@ fun AccountStatusCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(CircleShape),
-                onClick = onLoginClick
+                onClick = onNavigateToSetup
             )
         }
 
@@ -411,8 +414,7 @@ fun AccountStatusCard(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(CircleShape),
-                    onClick = onReloginClick
+                        .clip(CircleShape)
                 )
 
                 Column(

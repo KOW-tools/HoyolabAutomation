@@ -4,14 +4,15 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import cc.kowx712.autohoyolab.auth.HoyoLabAuthClient
 import cc.kowx712.autohoyolab.data.cookie.CookieStore
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.local.CheckInLog
-import cc.kowx712.autohoyolab.data.model.CheckInResult
+import cc.kowx712.autohoyolab.data.model.SignResult
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
 import cc.kowx712.autohoyolab.data.model.ResignResult
-import cc.kowx712.autohoyolab.network.HoyolabApiClient
+import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
 import cc.kowx712.autohoyolab.notification.CheckInNotifier
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
@@ -43,7 +44,64 @@ class CheckInWorker(
             return Result.success()
         }
 
-        // Check if cookie is already marked as expired
+        // Refresh tokens before checking the expired marker or making any API request.
+        if (cookieStore.hasRefreshCredentials()) {
+            Log.d(TAG, "Refresh credentials found, refreshing tokens...")
+            try {
+                val stoken = cookieStore.getStoken()
+                val ltuidV2 = cookieStore.getLtuidV2()
+                val ltmidV2 = cookieStore.getLtmidV2()
+                val accountIdV2 = cookieStore.getAccountIdV2()
+                val accountMidV2 = cookieStore.getAccountMidV2()
+
+                if (stoken != null && ltuidV2 != null && ltmidV2 != null) {
+                    val authClient = HoyoLabAuthClient()
+                    val refreshResult = authClient.refreshTokens(stoken, ltuidV2, ltmidV2)
+
+                    if (refreshResult.ltokenV2 != null && refreshResult.cookieTokenV2 != null) {
+                        // Build complete cookie string
+                        val refreshedCookie = "stoken=$stoken; ltoken_v2=${refreshResult.ltokenV2}; " +
+                                "ltuid_v2=$ltuidV2; ltmid_v2=$ltmidV2; " +
+                                "cookie_token_v2=${refreshResult.cookieTokenV2}; " +
+                                "account_mid_v2=${accountMidV2 ?: ltmidV2}; " +
+                                "account_id_v2=${accountIdV2 ?: ltuidV2}"
+
+                        // Save refreshed cookie
+                        // Keep the previous expiry when the endpoint omits Max-Age.
+                        val expiresAt = refreshResult.expiresAt.takeIf { it > 0 }
+                            ?: cookieStore.getExpiresAt()
+                        cookieStore.saveCookie(refreshedCookie, expiresAt)
+                        Log.d(TAG, "Tokens refreshed successfully")
+                    } else {
+                        Log.e(TAG, "Token refresh returned incomplete tokens")
+                        cookieStore.markAsExpired()
+                        notifier.showCookieExpiredNotification()
+                        notifier.dismissProgressNotification()
+                        return Result.failure()
+                    }
+                }
+            } catch (e: HoyoLabAuthClient.RefreshCredentialsRejectedException) {
+                Log.e(TAG, "Refresh credentials were rejected: ${e.message}")
+                cookieStore.markAsExpired()
+                notifier.showCookieExpiredNotification()
+                notifier.dismissProgressNotification()
+                return Result.failure()
+            } catch (e: HoyoLabAuthClient.AuthException) {
+                // Network, HTTP, and malformed-response errors are transient.
+                // Preserve the credentials and let WorkManager retry later.
+                Log.e(TAG, "Token refresh failed temporarily: ${e.message}")
+                notifier.showNetworkErrorNotification()
+                notifier.dismissProgressNotification()
+                return Result.retry()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to refresh tokens: ${e.message}")
+                notifier.showNetworkErrorNotification()
+                notifier.dismissProgressNotification()
+                return Result.retry()
+            }
+        }
+
+        // A cookie with no refresh credentials cannot be repaired in the background.
         if (cookieStore.isExpired()) {
             Log.e(TAG, "Cookie is marked as expired")
             notifier.showCookieExpiredNotification()
@@ -60,7 +118,7 @@ class CheckInWorker(
             return Result.failure()
         }
 
-        val apiClient = HoyolabApiClient(cookie)
+        val apiClient = HoyoLabApiClient(cookie)
 
         // Validate cookie
         try {
@@ -71,8 +129,9 @@ class CheckInWorker(
                 email = account.email,
                 validatedAt = account.validatedAt
             )
+            cookieStore.updateExpiresAt(account.expiresAt)
             Log.d(TAG, "Cookie validated for account: ${account.accountId}")
-        } catch (e: HoyolabApiClient.CookieExpiredException) {
+        } catch (e: HoyoLabApiClient.CookieExpiredException) {
             Log.e(TAG, "Cookie expired: ${e.message}")
             cookieStore.markAsExpired()
             notifier.showCookieExpiredNotification()
@@ -150,20 +209,20 @@ class CheckInWorker(
         }
 
         // Perform check-ins
-        val results = mutableListOf<CheckInResult>()
+        val results = mutableListOf<SignResult>()
         val resignResults = mutableListOf<ResignResult>()
         for ((game, role) in gamesToCheckIn) {
             Log.d(TAG, "Checking in for ${game.displayName} - ${role.regionName} (Lv.${role.level})...")
-            val result = apiClient.checkIn(game)
+            val result = apiClient.sign(game)
             results.add(result)
 
             // Save log
             val status = when (result) {
-                is CheckInResult.Success -> "SUCCESS"
-                is CheckInResult.AlreadySigned -> "ALREADY_SIGNED"
-                is CheckInResult.Failed -> "FAILED"
-                is CheckInResult.CookieExpired -> "COOKIE_EXPIRED"
-                is CheckInResult.NetworkError -> "NETWORK_ERROR"
+                is SignResult.Success -> "SUCCESS"
+                is SignResult.AlreadySigned -> "ALREADY_SIGNED"
+                is SignResult.Failed -> "FAILED"
+                is SignResult.CookieExpired -> "COOKIE_EXPIRED"
+                is SignResult.NetworkError -> "NETWORK_ERROR"
             }
 
             val log = CheckInLog(
@@ -173,11 +232,11 @@ class CheckInWorker(
                 timestamp = System.currentTimeMillis(),
                 status = status,
                 message = when (result) {
-                    is CheckInResult.Failed -> result.message
+                    is SignResult.Failed -> result.message
                     else -> null
                 },
                 retcode = when (result) {
-                    is CheckInResult.Failed -> result.retcode
+                    is SignResult.Failed -> result.retcode
                     else -> null
                 }
             )

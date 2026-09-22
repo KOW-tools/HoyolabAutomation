@@ -20,6 +20,7 @@ import cc.kowx712.autohoyolab.ui.viewmodel.HomeViewModel
 import cc.kowx712.autohoyolab.ui.viewmodel.HomeViewModelFactory
 import cc.kowx712.autohoyolab.ui.viewmodel.LogsViewModel
 import cc.kowx712.autohoyolab.ui.viewmodel.LogsViewModelFactory
+import androidx.core.content.edit
 
 @Composable
 fun AppNavGraph(
@@ -63,7 +64,17 @@ fun AppNavGraph(
                 )
                 HomeScreen(
                     viewModel = homeViewModel,
-                    onNavigateToLogs = { navigator.push(Logs) }
+                    onNavigateToLogs = { navigator.push(Logs) },
+                    onNavigateToSetup = {
+                        // Navigate to setup screen for re-login
+                        navigator.push(Setup)
+                    },
+                    onLogout = {
+                        // Clear setup complete flag and navigate back to setup
+                        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                        prefs.edit { putBoolean("setup_complete", false) }
+                        navigator.replace(Setup)
+                    }
                 )
             }
             entry<Logs> {

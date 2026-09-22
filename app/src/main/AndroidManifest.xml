@@ -30,12 +30,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Login WebView Activity -->
-        <activity
-            android:name=".ui.WebViewActivity"
-            android:exported="false"
-            android:theme="@style/Theme.WebView" />
-
         <!-- Boot Receiver -->
         <receiver
             android:name=".receiver.BootReceiver"

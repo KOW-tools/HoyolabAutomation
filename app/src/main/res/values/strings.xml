@@ -12,7 +12,6 @@
     <!-- Account Status -->
     <string name="account_status_no_login">No account</string>
     <string name="account_status_tap_to_login">Tap to login</string>
-    <string name="button_login_hoyolab">Login</string>
     <string name="account_status_cookie_expired">Expired</string>
     <string name="account_status_error_loading">Error</string>
     <string name="button_logout">Logout</string>
@@ -53,8 +52,7 @@
 
     <!-- Log Card -->
     <string name="log_no_message">No message</string>
-    <string name="log_retcode_format">Code: %d</string>
-    
+
     <!-- Log Messages -->
     <string name="log_message_success">Check-in successful</string>
     <string name="log_message_already_signed">Already signed in today</string>
@@ -91,8 +89,6 @@
     <string name="notification_summary_network_error">%d network error</string>
 
     <!-- Login Messages -->
-    <string name="toast_login_success">Login successful! Found %d games</string>
-    <string name="toast_login_failed">Failed to validate cookie: %s</string>
 
     <!-- Setup Screen -->
     <string name="setup_title">Setup</string>
@@ -100,4 +96,23 @@
     <string name="setup_grant_autostart">Grant Autostart</string>
     <string name="setup_disable_battery_optimization">Disable Battery Optimization</string>
     <string name="setup_recommended">Recommended</string>
+    <string name="setup_permissions_title">Grant Permissions</string>
+    <string name="setup_permissions_subtitle">To ensure check-ins run reliably in the background, please grant the following permissions:</string>
+    <string name="setup_login_title">Login to HoYoLAB</string>
+    <string name="setup_login_subtitle">Enter your HoYoLAB email and password to enable automatic check-ins:</string>
+    <string name="setup_email_label">Email</string>
+    <string name="setup_password_label">Password</string>
+    <string name="setup_login_button">Login</string>
+    <string name="setup_hide_password">Hide password</string>
+    <string name="setup_show_password">Show password</string>
+    <string name="setup_completion_setting_up">Setting up…</string>
+    <string name="setup_completion_complete">Setup Complete!</string>
+    <string name="setup_completion_message">Your automatic check-ins are now configured</string>
+    <string name="setup_button_back">Back</string>
+    <string name="setup_button_next">Next</string>
+    <string name="setup_verification_title">Email Verification</string>
+    <string name="setup_verification_subtitle">Enter the verification code sent to your email:</string>
+    <string name="setup_verification_code_label">Verification Code</string>
+    <string name="setup_verification_button">Verify</string>
+    <string name="setup_verification_send_otp">Send OTP</string>
 </resources>

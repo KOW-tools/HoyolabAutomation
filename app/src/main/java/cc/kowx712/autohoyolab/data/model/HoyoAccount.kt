@@ -5,4 +5,5 @@ data class HoyoAccount(
     val accountName: String?,
     val email: String?,
     val validatedAt: Long,
+    val expiresAt: Long = 0,
 )

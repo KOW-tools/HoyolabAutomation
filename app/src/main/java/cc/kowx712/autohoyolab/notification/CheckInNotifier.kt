@@ -8,7 +8,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import cc.kowx712.autohoyolab.R
-import cc.kowx712.autohoyolab.data.model.CheckInResult
+import cc.kowx712.autohoyolab.data.model.SignResult
 import cc.kowx712.autohoyolab.ui.MainActivity
 import cc.kowx712.autohoyolab.ui.navigation.IntentDispatcher
 import cc.kowx712.autohoyolab.ui.navigation.Logs
@@ -35,12 +35,12 @@ class CheckInNotifier(private val context: Context) {
         notificationManager.createNotificationChannel(channel)
     }
 
-    fun showSummaryNotification(results: List<CheckInResult>) {
-        val successCount = results.count { it is CheckInResult.Success }
-        val alreadySignedCount = results.count { it is CheckInResult.AlreadySigned }
-        val failedCount = results.count { it is CheckInResult.Failed }
-        val expiredCount = results.count { it is CheckInResult.CookieExpired }
-        val networkErrorCount = results.count { it is CheckInResult.NetworkError }
+    fun showSummaryNotification(results: List<SignResult>) {
+        val successCount = results.count { it is SignResult.Success }
+        val alreadySignedCount = results.count { it is SignResult.AlreadySigned }
+        val failedCount = results.count { it is SignResult.Failed }
+        val expiredCount = results.count { it is SignResult.CookieExpired }
+        val networkErrorCount = results.count { it is SignResult.NetworkError }
 
         val title = when {
             expiredCount > 0 -> context.getString(R.string.notification_title_cookie_expired)

@@ -1,16 +1,13 @@
 package cc.kowx712.autohoyolab.ui.viewmodel
 
 import android.content.Context
-import android.content.Intent
-import android.webkit.CookieManager
-import android.webkit.WebStorage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.kowx712.autohoyolab.data.cookie.CookieStore
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
-import cc.kowx712.autohoyolab.network.HoyolabApiClient
+import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +22,9 @@ class HomeViewModel(
     private val applicationContext = context.applicationContext
     private val cookieStore = CookieStore(applicationContext)
     private val database = AppDatabase.getDatabase(applicationContext)
+
+    /** Cookie string that [loadAccountInfo] last validated successfully. */
+    private var lastValidatedCookie: String? = null
 
     private val _accountInfo = MutableStateFlow<AccountState>(AccountState.Loading)
     val accountInfo: StateFlow<AccountState> = _accountInfo.asStateFlow()
@@ -48,61 +48,69 @@ class HomeViewModel(
         loadAccountInfo()
     }
 
-    fun loadAccountInfo() {
+    fun loadAccountInfo(force: Boolean = false) {
         viewModelScope.launch {
-            _isRefreshing.value = true
-            _accountInfo.value = AccountState.Loading
-
             val cookie = cookieStore.getCookie()
-            if (cookie == null) {
-                _accountInfo.value = AccountState.NoCookie
-                _gameRoles.value = null
-                _isRefreshing.value = false
+
+            if (!force && cookie != null && cookie == lastValidatedCookie && !cookieStore.isExpired()) {
                 return@launch
             }
 
-            // Check if cookie is marked as expired
-            if (cookieStore.isExpired()) {
-                _accountInfo.value = AccountState.Expired("Cookie has expired")
-                _gameRoles.value = null
-                _isRefreshing.value = false
+            if (_isRefreshing.value) {
                 return@launch
             }
 
-            // Try to load cached account info first for faster display
-            val cachedAccountId = cookieStore.getAccountId()
-            val cachedAccountName = cookieStore.getAccountName()
-            val cachedEmail = cookieStore.getEmail()
-            val lastValidated = cookieStore.getLastValidatedAt()
-            val capturedAt = cookieStore.getCapturedAt()
-
-            if (cachedAccountId != null && cachedAccountName != null) {
-                // Show cached data immediately
-                _accountInfo.value = AccountState.Success(
-                    accountId = cachedAccountId,
-                    accountName = cachedAccountName,
-                    email = cachedEmail ?: "Unknown",
-                    validatedAt = lastValidated,
-                    capturedAt = capturedAt,
-                    expiresAt = cookieStore.getExpiresAt(),
-                    gameCount = _gameRoles.value?.size ?: 0
-                )
-            }
-
-            // Only fetch game roles if we don't have them cached
-            if (_gameRoles.value == null) {
-                _isLoadingGames.value = true
+            _isRefreshing.value = true
+            if (_accountInfo.value !is AccountState.Success) {
+                _accountInfo.value = AccountState.Loading
             }
 
             try {
-                val apiClient = HoyolabApiClient(cookie)
+                if (cookie == null) {
+                    lastValidatedCookie = null
+                    _accountInfo.value = AccountState.NoCookie
+                    _gameRoles.value = null
+                    return@launch
+                }
+
+                // Check if cookie is marked as expired
+                if (cookieStore.isExpired()) {
+                    lastValidatedCookie = null
+                    _accountInfo.value = AccountState.Expired("Cookie has expired")
+                    _gameRoles.value = null
+                    return@launch
+                }
+
+                // Try to load cached account info first for faster display
+                val cachedAccountId = cookieStore.getAccountId()
+                val cachedAccountName = cookieStore.getAccountName()
+                val cachedEmail = cookieStore.getEmail()
+                val lastValidated = cookieStore.getLastValidatedAt()
+                val capturedAt = cookieStore.getCapturedAt()
+
+                if (cachedAccountId != null && cachedAccountName != null) {
+                    _accountInfo.value = AccountState.Success(
+                        accountId = cachedAccountId,
+                        accountName = cachedAccountName,
+                        email = cachedEmail ?: "Unknown",
+                        validatedAt = lastValidated,
+                        capturedAt = capturedAt,
+                        expiresAt = cookieStore.getExpiresAt(),
+                        gameCount = _gameRoles.value?.size ?: 0
+                    )
+                }
+
+                if (_gameRoles.value == null) {
+                    _isLoadingGames.value = true
+                }
+
+                val apiClient = HoyoLabApiClient(cookie)
                 val account = apiClient.validateCookie()
 
                 // Only fetch roles if not cached
                 val roles = if (_gameRoles.value == null) {
                     apiClient.getUserGameRoles()
                 } else {
-                    // Use cached roles, but still update account info
                     emptyList()
                 }
 
@@ -112,6 +120,7 @@ class HomeViewModel(
                     email = account.email,
                     validatedAt = account.validatedAt
                 )
+                cookieStore.updateExpiresAt(account.expiresAt)
 
                 if (_gameRoles.value == null) {
                     val mappedGames = roles.mapNotNull { role ->
@@ -168,11 +177,14 @@ class HomeViewModel(
                     expiresAt = cookieStore.getExpiresAt(),
                     gameCount = _gameRoles.value?.size ?: 0
                 )
-            } catch (e: HoyolabApiClient.CookieExpiredException) {
+                lastValidatedCookie = cookie
+            } catch (e: HoyoLabApiClient.CookieExpiredException) {
+                lastValidatedCookie = null
                 cookieStore.markAsExpired()
                 _accountInfo.value = AccountState.Expired(e.message ?: "Cookie expired")
                 _gameRoles.value = null
             } catch (e: Exception) {
+                lastValidatedCookie = null
                 _accountInfo.value = AccountState.Error(e.message ?: "Unknown error")
             } finally {
                 _isRefreshing.value = false
@@ -182,9 +194,8 @@ class HomeViewModel(
     }
 
     fun logout() {
-        pruneWebViewData()
-
         cookieStore.clear()
+        lastValidatedCookie = null
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 database.gameProfilePreferenceDao().clearAll()
@@ -193,21 +204,6 @@ class HomeViewModel(
         _accountInfo.value = AccountState.NoCookie
         _gameRoles.value = null
         _selectedProfiles.value = emptyMap()
-    }
-
-    fun relogin() {
-        pruneWebViewData()
-
-        // Start fresh WebViewActivity for re-login
-        val intent = Intent(applicationContext, cc.kowx712.autohoyolab.ui.WebViewActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        applicationContext.startActivity(intent)
-    }
-
-    private fun pruneWebViewData() {
-        CookieManager.getInstance().removeAllCookies(null)
-        CookieManager.getInstance().flush()
-        WebStorage.getInstance().deleteAllData()
     }
 
     private fun formatDate(timestamp: Long): String {
@@ -226,7 +222,7 @@ class HomeViewModel(
                     )
                 )
             }
-            _selectedProfiles.value = _selectedProfiles.value + (gameId to gameUid)
+            _selectedProfiles.value += (gameId to gameUid)
         }
     }
 }

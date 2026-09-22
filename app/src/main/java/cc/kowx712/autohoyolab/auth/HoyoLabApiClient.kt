@@ -1,6 +1,6 @@
-package cc.kowx712.autohoyolab.network
+package cc.kowx712.autohoyolab.auth
 
-import cc.kowx712.autohoyolab.data.model.CheckInResult
+import cc.kowx712.autohoyolab.data.model.SignResult
 import cc.kowx712.autohoyolab.data.model.HoyoAccount
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -17,7 +18,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-class HoyolabApiClient(private val cookie: String) {
+class HoyoLabApiClient(private val cookie: String) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -98,6 +99,7 @@ class HoyolabApiClient(private val cookie: String) {
                 .build()
 
             val response = client.newCall(request).execute()
+            val setCookieHeaders = response.headers("Set-Cookie")
             val body = response.body.string()
 
             if (!response.isSuccessful) {
@@ -116,7 +118,8 @@ class HoyolabApiClient(private val cookie: String) {
                 accountId = data.accountId,
                 accountName = data.accountName?.ifBlank { null },
                 email = data.email?.ifBlank { null },
-                validatedAt = System.currentTimeMillis()
+                validatedAt = System.currentTimeMillis(),
+                expiresAt = LtokenExpiry.expiresAt(setCookieHeaders)
             )
         } catch (e: IOException) {
             throw ApiException("Network error: ${e.message}")
@@ -150,7 +153,7 @@ class HoyolabApiClient(private val cookie: String) {
         }
     }
 
-    suspend fun checkIn(game: HoyoGame): CheckInResult = withContext(Dispatchers.IO) {
+    suspend fun sign(game: HoyoGame): SignResult = withContext(Dispatchers.IO) {
         try {
             // First, check if already signed in
             val infoRequest = Request.Builder()
@@ -163,7 +166,7 @@ class HoyolabApiClient(private val cookie: String) {
             val infoBody = infoResponse.body.string()
 
             if (!infoResponse.isSuccessful) {
-                return@withContext CheckInResult.Failed(
+                return@withContext SignResult.Failed(
                     game.id,
                     "HTTP ${infoResponse.code}",
                     infoResponse.code
@@ -174,16 +177,16 @@ class HoyolabApiClient(private val cookie: String) {
 
             // Check for cookie expiration
             if (infoApiResponse.retcode == -100 || infoApiResponse.retcode == -1000) {
-                return@withContext CheckInResult.CookieExpired(game.id)
+                return@withContext SignResult.CookieExpired(game.id)
             }
 
             // Check if already signed
             if (infoApiResponse.data?.isSigned == true) {
-                return@withContext CheckInResult.AlreadySigned(game.id)
+                return@withContext SignResult.AlreadySigned(game.id)
             }
 
             // Proceed with sign-in
-            val signRequestBody = """{"act_id":"${game.actId}"}"""
+            val signRequestBody = """{"act_id":"${game.actId}","lang":"en-us"}"""
                 .toRequestBody("application/json; charset=utf-8".toMediaType())
 
             val signRequest = Request.Builder()
@@ -196,7 +199,7 @@ class HoyolabApiClient(private val cookie: String) {
             val signBody = signResponse.body.string()
 
             if (!signResponse.isSuccessful) {
-                return@withContext CheckInResult.Failed(
+                return@withContext SignResult.Failed(
                     game.id,
                     "HTTP ${signResponse.code}",
                     signResponse.code
@@ -206,19 +209,19 @@ class HoyolabApiClient(private val cookie: String) {
             val signApiResponse = json.decodeFromString<ApiResponse<EmptyData>>(signBody)
 
             when (signApiResponse.retcode) {
-                0 -> CheckInResult.Success(game.id)
-                -5003 -> CheckInResult.AlreadySigned(game.id) // Already signed today
-                -100, -1000 -> CheckInResult.CookieExpired(game.id)
-                else -> CheckInResult.Failed(
+                0 -> SignResult.Success(game.id)
+                -5003 -> SignResult.AlreadySigned(game.id) // Already signed today
+                -100, -1000 -> SignResult.CookieExpired(game.id)
+                else -> SignResult.Failed(
                     game.id,
                     signApiResponse.message,
                     signApiResponse.retcode
                 )
             }
         } catch (_: IOException) {
-            CheckInResult.NetworkError(game.id)
+            SignResult.NetworkError(game.id)
         } catch (e: Exception) {
-            CheckInResult.Failed(game.id, e.message ?: "Unknown error", null)
+            SignResult.Failed(game.id, e.message ?: "Unknown error", null)
         }
     }
 
@@ -410,8 +413,8 @@ class HoyolabApiClient(private val cookie: String) {
         }
     }
 
-    private fun buildHeaders(signGame: String? = null): okhttp3.Headers {
-        val builder = okhttp3.Headers.Builder()
+    private fun buildHeaders(signGame: String? = null): Headers {
+        val builder = Headers.Builder()
             .add("Cookie", cookie)
             .add("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36")
             .add("Referer", "https://act.hoyolab.com/")

@@ -97,6 +97,7 @@ class CookieStore(context: Context) {
             putString(KEY_COOKIE, encrypted)
                 .putLong(KEY_CAPTURED_AT, System.currentTimeMillis())
                 .putLong(KEY_EXPIRES_AT, expiresAt)
+                .putBoolean(KEY_EXPIRED, false)
         }
     }
 
@@ -136,6 +137,13 @@ class CookieStore(context: Context) {
     fun getLastValidatedAt(): Long = sharedPreferences.getLong(KEY_LAST_VALIDATED, 0)
     fun getCapturedAt(): Long = sharedPreferences.getLong(KEY_CAPTURED_AT, 0)
     fun getExpiresAt(): Long = sharedPreferences.getLong(KEY_EXPIRES_AT, 0)
+
+    fun updateExpiresAt(expiresAt: Long) {
+        if (expiresAt <= 0) return
+        sharedPreferences.edit {
+            putLong(KEY_EXPIRES_AT, expiresAt)
+        }
+    }
     fun isExpired(): Boolean = sharedPreferences.getBoolean(KEY_EXPIRED, false)
 
     fun markAsExpired() {
@@ -150,6 +158,37 @@ class CookieStore(context: Context) {
 
     fun hasCookie(): Boolean = getCookie() != null
 
+    // Stoken-related methods for refresh
+    fun saveStoken(
+        stoken: String,
+        ltuidV2: String,
+        ltmidV2: String,
+        accountIdV2: String,
+        accountMidV2: String
+    ) {
+        sharedPreferences.edit {
+            putString(KEY_STOKEN, encrypt(stoken))
+            putString(KEY_LTUID_V2, ltuidV2)
+            putString(KEY_LTMID_V2, ltmidV2)
+            putString(KEY_ACCOUNT_ID_V2, accountIdV2)
+            putString(KEY_ACCOUNT_MID_V2, accountMidV2)
+        }
+    }
+
+    fun getStoken(): String? {
+        val encrypted = sharedPreferences.getString(KEY_STOKEN, null) ?: return null
+        return decrypt(encrypted)
+    }
+
+    fun getLtuidV2(): String? = sharedPreferences.getString(KEY_LTUID_V2, null)
+    fun getLtmidV2(): String? = sharedPreferences.getString(KEY_LTMID_V2, null)
+    fun getAccountIdV2(): String? = sharedPreferences.getString(KEY_ACCOUNT_ID_V2, null)
+    fun getAccountMidV2(): String? = sharedPreferences.getString(KEY_ACCOUNT_MID_V2, null)
+
+    fun hasRefreshCredentials(): Boolean {
+        return getStoken() != null && getLtuidV2() != null && getLtmidV2() != null
+    }
+
     companion object {
         private const val KEY_COOKIE = "cookie"
         private const val KEY_ACCOUNT_ID = "account_id"
@@ -159,5 +198,12 @@ class CookieStore(context: Context) {
         private const val KEY_CAPTURED_AT = "captured_at"
         private const val KEY_EXPIRES_AT = "expires_at"
         private const val KEY_EXPIRED = "expired"
+
+        // Stoken keys
+        private const val KEY_STOKEN = "stoken"
+        private const val KEY_LTUID_V2 = "ltuid_v2"
+        private const val KEY_LTMID_V2 = "ltmid_v2"
+        private const val KEY_ACCOUNT_ID_V2 = "account_id_v2"
+        private const val KEY_ACCOUNT_MID_V2 = "account_mid_v2"
     }
 }

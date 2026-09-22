@@ -47,6 +47,7 @@ class LogsViewModel(
                         "SUCCESS", "RESIGN_SUCCESS" -> successEnabled
                         "FAILED", "COOKIE_EXPIRED", "NETWORK_ERROR",
                         "RESIGN_FAILED", "RESIGN_COOKIE_EXPIRED", "RESIGN_NETWORK_ERROR" -> failedEnabled
+
                         else -> false
                     }
                 }
