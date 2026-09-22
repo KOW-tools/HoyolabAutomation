@@ -155,7 +155,7 @@ class HoyolabApiClient(private val cookie: String) {
             // First, check if already signed in
             val infoRequest = Request.Builder()
                 .url(game.infoUrl)
-                .headers(buildHeaders())
+                .headers(buildHeaders(game.signGame))
                 .get()
                 .build()
 
@@ -188,7 +188,7 @@ class HoyolabApiClient(private val cookie: String) {
 
             val signRequest = Request.Builder()
                 .url(game.signUrl)
-                .headers(buildHeaders())
+                .headers(buildHeaders(game.signGame))
                 .post(signRequestBody)
                 .build()
 
@@ -227,7 +227,7 @@ class HoyolabApiClient(private val cookie: String) {
             // First, check resign eligibility
             val resignInfoRequest = Request.Builder()
                 .url(game.resignInfoUrl)
-                .headers(buildHeaders())
+                .headers(buildHeaders(game.signGame))
                 .get()
                 .build()
 
@@ -275,7 +275,7 @@ class HoyolabApiClient(private val cookie: String) {
                 // Need to complete tasks to qualify - fetch task list first
                 val taskListRequest = Request.Builder()
                     .url(game.taskListUrl)
-                    .headers(buildHeaders())
+                    .headers(buildHeaders(game.signGame))
                     .get()
                     .build()
 
@@ -314,7 +314,7 @@ class HoyolabApiClient(private val cookie: String) {
 
                 val completeRequest = Request.Builder()
                     .url(game.taskCompleteUrl)
-                    .headers(buildHeaders())
+                    .headers(buildHeaders(game.signGame))
                     .post(completeRequestBody)
                     .build()
 
@@ -345,7 +345,7 @@ class HoyolabApiClient(private val cookie: String) {
 
                 val awardRequest = Request.Builder()
                     .url(game.taskAwardUrl)
-                    .headers(buildHeaders())
+                    .headers(buildHeaders(game.signGame))
                     .post(awardRequestBody)
                     .build()
 
@@ -377,7 +377,7 @@ class HoyolabApiClient(private val cookie: String) {
 
             val resignRequest = Request.Builder()
                 .url(game.resignUrl)
-                .headers(buildHeaders())
+                .headers(buildHeaders(game.signGame))
                 .post(resignRequestBody)
                 .build()
 
@@ -410,12 +410,17 @@ class HoyolabApiClient(private val cookie: String) {
         }
     }
 
-    private fun buildHeaders() = okhttp3.Headers.Builder()
-        .add("Cookie", cookie)
-        .add("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36")
-        .add("Referer", "https://act.hoyolab.com/")
-        .add("Origin", "https://act.hoyolab.com")
-        .add("x-rpc-app_version", "2.71.1")
-        .add("x-rpc-client_type", "5")
-        .build()
+    private fun buildHeaders(signGame: String? = null): okhttp3.Headers {
+        val builder = okhttp3.Headers.Builder()
+            .add("Cookie", cookie)
+            .add("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36")
+            .add("Referer", "https://act.hoyolab.com/")
+            .add("Origin", "https://act.hoyolab.com")
+            .add("x-rpc-app_version", "2.71.1")
+            .add("x-rpc-client_type", "5")
+        if (signGame != null) {
+            builder.add("x-rpc-signgame", signGame)
+        }
+        return builder.build()
+    }
 }
