@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import cc.kowx712.autohoyolab.data.preferences.AppPrefs
 import cc.kowx712.autohoyolab.ui.screen.HomeScreen
 import cc.kowx712.autohoyolab.ui.screen.LogsScreen
 import cc.kowx712.autohoyolab.ui.screen.SetupScreen
@@ -20,7 +21,6 @@ import cc.kowx712.autohoyolab.ui.viewmodel.HomeViewModel
 import cc.kowx712.autohoyolab.ui.viewmodel.HomeViewModelFactory
 import cc.kowx712.autohoyolab.ui.viewmodel.LogsViewModel
 import cc.kowx712.autohoyolab.ui.viewmodel.LogsViewModelFactory
-import androidx.core.content.edit
 
 @Composable
 fun AppNavGraph(
@@ -71,8 +71,7 @@ fun AppNavGraph(
                     },
                     onLogout = {
                         // Clear setup complete flag and navigate back to setup
-                        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                        prefs.edit { putBoolean("setup_complete", false) }
+                        AppPrefs.setSetupComplete(context, false)
                         navigator.replace(Setup)
                     }
                 )

@@ -76,12 +76,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cc.kowx712.autohoyolab.R
+import cc.kowx712.autohoyolab.data.preferences.AppPrefs
 import cc.kowx712.autohoyolab.ui.component.CaptchaWidget
 import cc.kowx712.autohoyolab.ui.component.ExpressiveScaffold
 import cc.kowx712.autohoyolab.ui.component.defaultSegmentedColors
@@ -210,8 +210,7 @@ fun SetupScreen(
                             2 -> CompletionPage(
                                 enabled = loginState is SetupViewModel.LoginState.Success,
                                 onComplete = {
-                                    val appPrefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                                    appPrefs.edit { putBoolean("setup_complete", true) }
+                                    AppPrefs.setSetupComplete(context, true)
                                     onSetupComplete()
                                 }
                             )

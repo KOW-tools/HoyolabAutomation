@@ -1,11 +1,11 @@
 package cc.kowx712.autohoyolab.ui.viewmodel
 
 import android.content.Context
-import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.local.CheckInLog
+import cc.kowx712.autohoyolab.data.preferences.LogsFilterPrefs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,12 +17,10 @@ class LogsViewModel(
 
     private val applicationContext = context.applicationContext
     private val database = AppDatabase.getDatabase(applicationContext)
-    private val sharedPreferences = applicationContext.getSharedPreferences("logs_filter", Context.MODE_PRIVATE)
-
-    private val _filterSuccess = MutableStateFlow(sharedPreferences.getBoolean("filter_success", true))
+    private val _filterSuccess = MutableStateFlow(LogsFilterPrefs.isFilterSuccess(applicationContext))
     val filterSuccess: StateFlow<Boolean> = _filterSuccess.asStateFlow()
 
-    private val _filterFailed = MutableStateFlow(sharedPreferences.getBoolean("filter_failed", true))
+    private val _filterFailed = MutableStateFlow(LogsFilterPrefs.isFilterFailed(applicationContext))
     val filterFailed: StateFlow<Boolean> = _filterFailed.asStateFlow()
 
     private val _logs = MutableStateFlow<List<CheckInLog>>(emptyList())
@@ -57,13 +55,13 @@ class LogsViewModel(
 
     fun setFilterSuccess(enabled: Boolean) {
         _filterSuccess.value = enabled
-        sharedPreferences.edit { putBoolean("filter_success", enabled) }
+        LogsFilterPrefs.setFilterSuccess(applicationContext, enabled)
         observeLogs()
     }
 
     fun setFilterFailed(enabled: Boolean) {
         _filterFailed.value = enabled
-        sharedPreferences.edit { putBoolean("filter_failed", enabled) }
+        LogsFilterPrefs.setFilterFailed(applicationContext, enabled)
         observeLogs()
     }
 }

@@ -10,7 +10,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.core.content.edit
+import cc.kowx712.autohoyolab.data.preferences.AppPrefs
 import cc.kowx712.autohoyolab.ui.component.ExpressiveScaffold
 import cc.kowx712.autohoyolab.ui.navigation.AppNavGraph
 import cc.kowx712.autohoyolab.ui.navigation.Home
@@ -32,8 +32,7 @@ class MainActivity : ComponentActivity() {
         // Handle cookie expired action
         val action = intent.getStringExtra("action")
         if (action == "cookie_expired") {
-            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-            prefs.edit { putBoolean("setup_complete", false) }
+            AppPrefs.setSetupComplete(this, false)
         }
 
         setContent {
@@ -56,8 +55,7 @@ class MainActivity : ComponentActivity() {
 
             HoyolabAutomationTheme {
                 // Check if setup is complete
-                val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-                val setupComplete = prefs.getBoolean("setup_complete", false)
+                val setupComplete = AppPrefs.isSetupComplete(this)
 
                 val intentDestination = IntentDispatcher.getDestinationFromIntent(intent)
 
