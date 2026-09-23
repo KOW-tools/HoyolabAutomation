@@ -95,6 +95,10 @@ When your session expires:
 - No data is sent to third-party servers
 - Check-in logs are stored locally on your device and automatically pruned after 30 days
 
+## Acknowledgement
+
+- [seriaati/genshin.py](https://github.com/seriaati/genshin.py) for login routine and cookie refresh routine reference.
+
 ## License
 
 This project is licensed under the [MIT](LICENSE) License.
