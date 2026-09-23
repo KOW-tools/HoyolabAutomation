@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.kowx712.autohoyolab.auth.ActionTicket
@@ -97,90 +98,100 @@ class SetupViewModel(context: Context) : ViewModel() {
     }
 
     fun requestAutostartPermission() {
-        try {
-            val intent: Intent
-            val manufacturer = Build.MANUFACTURER.lowercase()
-
-            when {
-                manufacturer.contains("xiaomi") -> {
-                    intent = Intent().apply {
-                        component = ComponentName(
-                            "com.miui.securitycenter",
-                            "com.miui.permcenter.autostart.AutoStartManagementActivity"
-                        )
-                    }
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val candidates: List<Intent> = when {
+            manufacturer.contains("xiaomi") -> listOf(
+                Intent().apply {
+                    component = ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                    )
                 }
+            )
 
-                manufacturer.contains("oppo") -> {
-                    intent = Intent().apply {
-                        component = ComponentName(
-                            "com.coloros.safecenter",
-                            "com.coloros.safecenter.permission.startup.StartupAppListActivity"
-                        )
-                    }
+            manufacturer.contains("oppo") -> listOf(
+                Intent().apply {
+                    component = ComponentName(
+                        "com.coloros.safecenter",
+                        "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+                    )
                 }
+            )
 
-                manufacturer.contains("vivo") -> {
-                    intent = Intent().apply {
-                        component = ComponentName(
-                            "com.vivo.permissionmanager",
-                            "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
-                        )
-                    }
+            manufacturer.contains("vivo") -> listOf(
+                Intent().apply {
+                    component = ComponentName(
+                        "com.vivo.permissionmanager",
+                        "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"
+                    )
                 }
+            )
 
-                manufacturer.contains("huawei") -> {
-                    intent = Intent().apply {
-                        component = ComponentName(
-                            "com.huawei.systemmanager",
-                            "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
-                        )
-                    }
+            manufacturer.contains("huawei") -> listOf(
+                Intent().apply {
+                    component = ComponentName(
+                        "com.huawei.systemmanager",
+                        "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+                    )
                 }
+            )
 
-                manufacturer.contains("honor") -> {
-                    val newHonorIntent = Intent().apply {
-                        component = ComponentName(
-                            "com.hihonor.systemmanager",
-                            "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
-                        )
-                    }
-                    val oldHonorIntent = Intent().apply {
-                        component = ComponentName(
-                            "com.huawei.systemmanager",
-                            "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
-                        )
-                    }
-
-                    intent = if (applicationContext.packageManager.resolveActivity(
-                            newHonorIntent,
-                            PackageManager.MATCH_DEFAULT_ONLY
-                        ) != null
-                    ) {
-                        newHonorIntent
-                    } else {
-                        oldHonorIntent
-                    }
+            manufacturer.contains("honor") -> listOf(
+                Intent().apply {
+                    component = ComponentName(
+                        "com.hihonor.systemmanager",
+                        "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+                    )
+                },
+                Intent().apply {
+                    component = ComponentName(
+                        "com.huawei.systemmanager",
+                        "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"
+                    )
                 }
+            )
 
-                manufacturer.contains("samsung") -> {
-                    intent = Intent().apply {
-                        component = ComponentName(
-                            "com.samsung.android.lool",
-                            "com.samsung.android.sm.ui.battery.BatteryActivity"
-                        )
-                    }
-                }
+            manufacturer.contains("samsung") -> listOf(
+                Intent().apply {
+                    action = "com.samsung.android.sm.ACTION_OPEN_CHECKABLE_LISTACTIVITY"
+                    setPackage("com.samsung.android.lool")
+                    putExtra("activity_type", 2)
+                },
+                Intent().apply {
+                    component = ComponentName(
+                        "com.samsung.android.lool",
+                        "com.samsung.android.sm.battery.ui.BatteryActivity"
+                    )
+                },
+                Intent().apply {
+                    component = ComponentName(
+                        "com.samsung.android.lool",
+                        "com.samsung.android.sm.battery.ui.usage.CheckableAppListActivity"
+                    )
+                },
+                Intent().apply {
+                    component = ComponentName(
+                        "com.samsung.android.lool",
+                        "com.samsung.android.sm.ui.battery.BatteryActivity"
+                    )
+                },
+            )
 
-                else -> {
-                    intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                }
+            else -> listOf(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+
+        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = "package:${applicationContext.packageName}".toUri()
+        }
+
+        for (intent in candidates + fallback) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                applicationContext.startActivity(intent)
+                return
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            applicationContext.startActivity(intent)
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
