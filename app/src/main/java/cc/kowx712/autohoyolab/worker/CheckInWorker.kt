@@ -4,15 +4,15 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
 import cc.kowx712.autohoyolab.auth.HoyoLabAuthClient
 import cc.kowx712.autohoyolab.data.cookie.CookieStore
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.local.CheckInLog
-import cc.kowx712.autohoyolab.data.model.SignResult
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
 import cc.kowx712.autohoyolab.data.model.ResignResult
-import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
+import cc.kowx712.autohoyolab.data.model.SignResult
 import cc.kowx712.autohoyolab.notification.CheckInNotifier
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds

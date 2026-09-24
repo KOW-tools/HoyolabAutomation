@@ -3,11 +3,11 @@ package cc.kowx712.autohoyolab.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
 import cc.kowx712.autohoyolab.data.cookie.CookieStore
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
-import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

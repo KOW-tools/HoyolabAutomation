@@ -144,6 +144,7 @@ class CookieStore(context: Context) {
             putLong(KEY_EXPIRES_AT, expiresAt)
         }
     }
+
     fun isExpired(): Boolean = sharedPreferences.getBoolean(KEY_EXPIRED, false)
 
     fun markAsExpired() {

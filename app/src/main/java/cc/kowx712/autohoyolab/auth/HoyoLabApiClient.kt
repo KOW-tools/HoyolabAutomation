@@ -1,10 +1,10 @@
 package cc.kowx712.autohoyolab.auth
 
-import cc.kowx712.autohoyolab.data.model.SignResult
 import cc.kowx712.autohoyolab.data.model.HoyoAccount
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
 import cc.kowx712.autohoyolab.data.model.ResignResult
+import cc.kowx712.autohoyolab.data.model.SignResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
