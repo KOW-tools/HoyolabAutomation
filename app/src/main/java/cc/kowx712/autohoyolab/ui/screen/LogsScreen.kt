@@ -61,7 +61,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.kowx712.autohoyolab.R
@@ -243,7 +242,7 @@ fun LogCard(log: CheckInLog, index: Int, count: Int) {
             }
         },
         overlineContent = {
-            Text(gameName, fontWeight = FontWeight.Bold)
+            Text(gameName)
         },
         supportingContent = {
             Column {

@@ -72,7 +72,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -170,7 +169,7 @@ fun HomeScreen(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    bottom = navBars.calculateBottomPadding() + captionBar.calculateBottomPadding()
+                    bottom = 16.dp + navBars.calculateBottomPadding() + captionBar.calculateBottomPadding()
                 ),
             ) {
                 // Account Status Card
@@ -204,8 +203,7 @@ fun HomeScreen(
                             ) {
                                 Text(
                                     stringResource(R.string.home_loading_games),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
+                                    style = MaterialTheme.typography.titleMediumEmphasized,
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 LinearWavyProgressIndicator(
@@ -270,7 +268,6 @@ fun HomeScreen(
                                 hasMultipleServers = hasMultipleServers,
                                 isSelected = selectedProfiles[gameId] == role.gameUid,
                                 onSelectProfile = { viewModel.selectProfile(gameId, role.gameUid, role.region) },
-                                onClick = { }
                             )
                         }
                     }
@@ -430,12 +427,17 @@ fun AccountStatusCard(
                                 stringResource(R.string.label_games_found_format, accountState.gameCount)
                             )
                         )
-                        add(Triple(Icons.Filled.DoneAll, stringResource(R.string.label_last_validated), formatDate(accountState.validatedAt)))
+                        add(
+                            Triple(
+                                Icons.Filled.DoneAll,
+                                stringResource(R.string.label_last_validated),
+                                formatDate(accountState.validatedAt)
+                            )
+                        )
                     }
 
                     infoItems.forEachIndexed { index, (icon, label, value) ->
                         SegmentedListItem(
-                            onClick = { },
                             shapes = defaultSegmentedShape(index = index, count = infoItems.size),
                             colors = defaultSegmentedColors(),
                             leadingContent = { Icon(icon, contentDescription = null) },
@@ -484,13 +486,12 @@ fun GameRoleCard(
     hasMultipleServers: Boolean,
     isSelected: Boolean,
     onSelectProfile: () -> Unit,
-    onClick: () -> Unit
 ) {
     val game = HoyoGame.fromGameBiz(role.gameBiz)
     val gameIconRes = game?.imageResId ?: R.drawable.img_hoyolab
 
     SegmentedListItem(
-        onClick = onClick,
+        onClick = onSelectProfile,
         shapes = defaultSegmentedShape(index = index, count = count),
         colors = defaultSegmentedColors(),
         verticalAlignment = Alignment.CenterVertically,
@@ -506,10 +507,7 @@ fun GameRoleCard(
         },
         trailingContent = {
             if (hasMultipleServers) {
-                RadioButton(
-                    selected = isSelected,
-                    onClick = onSelectProfile
-                )
+                RadioButton(selected = isSelected, onClick = null)
             }
         },
         supportingContent = {
@@ -532,7 +530,7 @@ fun GameRoleCard(
     )
 }
 
-fun formatDate(timestamp: Long): String {
+private fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }

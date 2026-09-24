@@ -170,7 +170,7 @@ class HomeViewModel(
 
                 _accountInfo.value = AccountState.Success(
                     accountId = account.accountId,
-                    accountName = account.accountName ?: "Unknown",
+                    accountName = account.accountName ?: "Traveler",
                     email = account.email ?: "Unknown",
                     validatedAt = account.validatedAt,
                     capturedAt = cookieStore.getCapturedAt(),

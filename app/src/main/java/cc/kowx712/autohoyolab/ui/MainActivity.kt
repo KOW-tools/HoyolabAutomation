@@ -7,7 +7,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import cc.kowx712.autohoyolab.data.preferences.AppPrefs
@@ -54,16 +53,12 @@ class MainActivity : ComponentActivity() {
             }
 
             HoyolabAutomationTheme {
-                // Check if setup is complete
                 val setupComplete = AppPrefs.isSetupComplete(this)
-
                 val intentDestination = IntentDispatcher.getDestinationFromIntent(intent)
-
                 val startDestination = when {
                     setupComplete -> Home
                     else -> Setup
                 }
-
                 val navigator = rememberNavigator(startDestination)
 
                 if (intentDestination != null && intentDestination != startDestination) {
@@ -72,9 +67,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                ExpressiveScaffold(
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0)
-                ) { AppNavGraph(navigator = navigator) }
+                ExpressiveScaffold { AppNavGraph(navigator = navigator) }
             }
         }
     }
