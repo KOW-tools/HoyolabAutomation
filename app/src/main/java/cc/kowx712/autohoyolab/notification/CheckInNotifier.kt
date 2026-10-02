@@ -13,7 +13,6 @@ import cc.kowx712.autohoyolab.ui.MainActivity
 import cc.kowx712.autohoyolab.ui.navigation.IntentDispatcher
 import cc.kowx712.autohoyolab.ui.navigation.Logs
 import cc.kowx712.autohoyolab.ui.navigation.Setup
-import cc.kowx712.autohoyolab.worker.CheckInWorker
 
 class CheckInNotifier(private val context: Context) {
 
@@ -127,14 +126,6 @@ class CheckInNotifier(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val retryIntent = Intent(context, CheckInWorker::class.java)
-        val retryPendingIntent = PendingIntent.getService(
-            context,
-            0,
-            retryIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title_network_error))
@@ -142,14 +133,13 @@ class CheckInNotifier(private val context: Context) {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .addAction(
-                R.drawable.ic_notification_refresh,
-                context.getString(R.string.notification_action_retry),
-                retryPendingIntent
-            )
             .build()
 
         notificationManager.notify(NOTIFICATION_ID_NETWORK_ERROR, notification)
+    }
+
+    fun dismissNetworkErrorNotification() {
+        notificationManager.cancel(NOTIFICATION_ID_NETWORK_ERROR)
     }
 
     fun showNoGamesNotification() {

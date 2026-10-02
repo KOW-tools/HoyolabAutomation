@@ -29,6 +29,8 @@ class CheckInWorker(
     override suspend fun doWork(): Result {
         Log.d(TAG, "CheckInWorker started")
 
+        AlarmScheduler.scheduleNextMidnight(applicationContext)
+
         // Prune logs older than 30 days
         try {
             val cutoffTime = System.currentTimeMillis() - (30 * 24 * 60 * 60 * 1000L)
@@ -41,6 +43,7 @@ class CheckInWorker(
         // Check if cookie exists
         if (!cookieStore.hasCookie()) {
             Log.d(TAG, "No cookie found, skipping check-in")
+            notifier.dismissNetworkErrorNotification()
             return Result.success()
         }
 
@@ -76,6 +79,7 @@ class CheckInWorker(
                         Log.e(TAG, "Token refresh returned incomplete tokens")
                         cookieStore.markAsExpired()
                         notifier.showCookieExpiredNotification()
+                        notifier.dismissNetworkErrorNotification()
                         notifier.dismissProgressNotification()
                         return Result.failure()
                     }
@@ -84,20 +88,17 @@ class CheckInWorker(
                 Log.e(TAG, "Refresh credentials were rejected: ${e.message}")
                 cookieStore.markAsExpired()
                 notifier.showCookieExpiredNotification()
+                notifier.dismissNetworkErrorNotification()
                 notifier.dismissProgressNotification()
                 return Result.failure()
             } catch (e: HoyoLabAuthClient.AuthException) {
                 // Network, HTTP, and malformed-response errors are transient.
                 // Preserve the credentials and let WorkManager retry later.
                 Log.e(TAG, "Token refresh failed temporarily: ${e.message}")
-                notifier.showNetworkErrorNotification()
-                notifier.dismissProgressNotification()
-                return Result.retry()
+                return retryDueToNetwork()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to refresh tokens: ${e.message}")
-                notifier.showNetworkErrorNotification()
-                notifier.dismissProgressNotification()
-                return Result.retry()
+                return retryDueToNetwork()
             }
         }
 
@@ -105,6 +106,7 @@ class CheckInWorker(
         if (cookieStore.isExpired()) {
             Log.e(TAG, "Cookie is marked as expired")
             notifier.showCookieExpiredNotification()
+            notifier.dismissNetworkErrorNotification()
             notifier.dismissProgressNotification()
             return Result.failure()
         }
@@ -114,6 +116,7 @@ class CheckInWorker(
         if (cookie == null) {
             Log.e(TAG, "Cookie exists but couldn't be retrieved")
             notifier.showCookieExpiredNotification()
+            notifier.dismissNetworkErrorNotification()
             notifier.dismissProgressNotification()
             return Result.failure()
         }
@@ -135,13 +138,12 @@ class CheckInWorker(
             Log.e(TAG, "Cookie expired: ${e.message}")
             cookieStore.markAsExpired()
             notifier.showCookieExpiredNotification()
+            notifier.dismissNetworkErrorNotification()
             notifier.dismissProgressNotification()
             return Result.failure()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to validate cookie: ${e.message}")
-            notifier.showNetworkErrorNotification()
-            notifier.dismissProgressNotification()
-            return Result.retry()
+            return retryDueToNetwork()
         }
 
         // Get user game roles
@@ -149,8 +151,7 @@ class CheckInWorker(
             apiClient.getUserGameRoles()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get game roles: ${e.message}")
-            notifier.showNetworkErrorNotification()
-            return Result.retry()
+            return retryDueToNetwork()
         }
 
         Log.d(TAG, "Found ${gameRoles.size} game roles")
@@ -204,6 +205,7 @@ class CheckInWorker(
         if (gamesToCheckIn.isEmpty()) {
             Log.w(TAG, "No supported games found")
             notifier.showNoGamesNotification()
+            notifier.dismissNetworkErrorNotification()
             notifier.dismissProgressNotification()
             return Result.success()
         }
@@ -308,17 +310,29 @@ class CheckInWorker(
             delay(2.seconds)
         }
 
+        val hadNetworkError = results.any { it is SignResult.NetworkError } ||
+                resignResults.any { it is ResignResult.NetworkError }
+        if (hadNetworkError) {
+            Log.w(TAG, "Network errors during check-in, requesting retry")
+            return retryDueToNetwork()
+        }
+
         // Show summary notification
         notifier.showSummaryNotification(results)
 
         // Dismiss progress notification
         notifier.dismissProgressNotification()
 
-        // Re-schedule next alarm
-        AlarmScheduler.scheduleNextMidnight(applicationContext)
+        notifier.dismissNetworkErrorNotification()
 
         Log.d(TAG, "CheckInWorker completed")
         return Result.success()
+    }
+
+    private fun retryDueToNetwork(): Result {
+        notifier.showNetworkErrorNotification()
+        notifier.dismissProgressNotification()
+        return Result.retry()
     }
 
     private fun selectByPriority(profiles: List<Pair<HoyoGame, HoyoGameRole>>): Pair<HoyoGame, HoyoGameRole> {

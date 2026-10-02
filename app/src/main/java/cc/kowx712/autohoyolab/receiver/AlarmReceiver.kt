@@ -4,17 +4,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import cc.kowx712.autohoyolab.worker.CheckInWorker
+import cc.kowx712.autohoyolab.worker.CheckInWork
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Log.d(TAG, "Alarm received, starting CheckInWorker")
 
-        // Enqueue the check-in worker
-        val workRequest = OneTimeWorkRequestBuilder<CheckInWorker>().build()
-        WorkManager.getInstance(context).enqueue(workRequest)
+        // Enqueue the check-in worker (waits for connectivity, unique work)
+        CheckInWork.enqueue(context)
     }
 
     companion object {

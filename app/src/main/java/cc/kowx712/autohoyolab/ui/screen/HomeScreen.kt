@@ -77,8 +77,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import cc.kowx712.autohoyolab.R
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
@@ -91,7 +89,7 @@ import cc.kowx712.autohoyolab.ui.component.expressiveTopAppBarColors
 import cc.kowx712.autohoyolab.ui.viewmodel.AccountState
 import cc.kowx712.autohoyolab.ui.viewmodel.HomeViewModel
 import cc.kowx712.autohoyolab.worker.AlarmScheduler
-import cc.kowx712.autohoyolab.worker.CheckInWorker
+import cc.kowx712.autohoyolab.worker.CheckInWork
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -179,8 +177,7 @@ fun HomeScreen(
                         onNavigateToSetup = onNavigateToSetup,
                         onRefreshClick = { viewModel.loadAccountInfo(force = true) },
                         onRunNowClick = {
-                            val workRequest = OneTimeWorkRequestBuilder<CheckInWorker>().build()
-                            WorkManager.getInstance(context).enqueue(workRequest)
+                            CheckInWork.enqueue(context)
                             CheckInNotifier(context).showManualCheckInStarted()
                         },
                         onLogoutClick = {
