@@ -10,14 +10,20 @@ plugins {
 extra["appVersionCode"] = getVersionCode()
 extra["appVersionName"] = getVersionName()
 
+fun gitOutput(vararg args: String): String {
+    return providers.exec {
+        commandLine("git", *args)
+        workingDir(rootDir)
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim()
+}
+
 fun getGitCommitCount(): Int {
-    val process = Runtime.getRuntime().exec(arrayOf("git", "rev-list", "--count", "HEAD"))
-    return process.inputStream.bufferedReader().use { it.readText().trim().toInt() }
+    return gitOutput("rev-list", "--count", "HEAD").toInt()
 }
 
 fun getGitDescribe(): String {
-    val process = Runtime.getRuntime().exec(arrayOf("git", "describe", "--tags", "--abbrev=0"))
-    return process.inputStream.bufferedReader().use { it.readText().trim() }
+    return gitOutput("describe", "--tags", "--abbrev=0")
 }
 
 fun getVersionCode(): Int {
