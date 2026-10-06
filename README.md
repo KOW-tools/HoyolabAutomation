@@ -30,6 +30,15 @@ Manage check-ins for all your HoYoverse games from a single app. The app automat
 
 View complete logs of all check-ins with detailed status for each game, making it easy to verify your rewards were claimed.
 
+### Auto Redeem Promo Codes
+
+Automatically redeems active promo codes for supported games:
+
+- Genshin Impact
+- Honkai: Star Rail
+- Zenless Zone Zero
+- Tears of Themis
+
 ### Notifications
 
 Get notified about your daily check-in results, including success status for each game and any issues that need attention.
@@ -48,6 +57,7 @@ Get notified about your daily check-in results, including success status for eac
 3. **That's it!** The app will automatically:
    - Detect all your linked games
    - Schedule daily check-ins at midnight
+   - Redeem active promo codes for supported games
    - Send you notifications about the results
 
 ### Running Manual Check-In
@@ -98,6 +108,7 @@ When your session expires:
 ## Acknowledgement
 
 - [seriaati/genshin.py](https://github.com/seriaati/genshin.py) for login routine and cookie refresh routine reference.
+- [torikushiii/hoyoverse-api](https://github.com/torikushiii/hoyoverse-api) for promo code scrapper and redeem routine.
 
 ## License
 

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
@@ -211,6 +212,7 @@ fun LogCard(log: CheckInLog, index: Int, count: Int) {
         "COOKIE_EXPIRED" -> Icons.Default.Warning to MaterialTheme.colorScheme.error
         "NETWORK_ERROR" -> Icons.Default.SignalWifiBad to MaterialTheme.colorScheme.error
         "RESIGN_SUCCESS" -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
+        "REDEEMED" -> Icons.Default.CardGiftcard to MaterialTheme.colorScheme.primary
         "RESIGN_FAILED" -> Icons.Default.Error to MaterialTheme.colorScheme.error
         "RESIGN_COOKIE_EXPIRED" -> Icons.Default.Warning to MaterialTheme.colorScheme.error
         "RESIGN_NETWORK_ERROR" -> Icons.Default.SignalWifiBad to MaterialTheme.colorScheme.error
@@ -281,6 +283,7 @@ fun LogCard(log: CheckInLog, index: Int, count: Int) {
                 "COOKIE_EXPIRED" -> stringResource(R.string.log_message_cookie_expired)
                 "NETWORK_ERROR" -> stringResource(R.string.log_message_network_error)
                 "RESIGN_SUCCESS" -> stringResource(R.string.log_message_resign_success)
+                "REDEEMED" -> stringResource(R.string.log_message_redeemed, log.redeemCount ?: 0)
                 "RESIGN_FAILED" -> log.message ?: stringResource(R.string.log_message_resign_failed)
                 "RESIGN_COOKIE_EXPIRED" -> stringResource(R.string.log_message_cookie_expired)
                 "RESIGN_NETWORK_ERROR" -> stringResource(R.string.log_message_network_error)

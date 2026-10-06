@@ -122,6 +122,7 @@ class CheckInWorker(
         }
 
         val apiClient = HoyoLabApiClient(cookie)
+        val redeemRunner = RedeemRunner(apiClient, database)
 
         // Validate cookie
         try {
@@ -305,6 +306,8 @@ class CheckInWorker(
 
                 database.checkInLogDao().insert(resignLog)
             }
+
+            redeemRunner.redeem(game, role)
 
             // Add delay between requests
             delay(2.seconds)

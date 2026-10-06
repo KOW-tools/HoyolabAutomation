@@ -16,7 +16,7 @@ interface CheckInLogDao {
     @Query("SELECT * FROM check_in_logs WHERE gameId = :gameId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLastLogForGame(gameId: String): CheckInLog?
 
-    @Query("SELECT * FROM check_in_logs WHERE gameId = :gameId AND status NOT LIKE 'RESIGN%' ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT * FROM check_in_logs WHERE gameId = :gameId AND status NOT LIKE 'RESIGN%' AND status NOT LIKE 'REDEEM%' ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLastCheckInLogForGame(gameId: String): CheckInLog?
 
     @Query("SELECT * FROM check_in_logs WHERE status = :status ORDER BY timestamp DESC")

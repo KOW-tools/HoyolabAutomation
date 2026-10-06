@@ -11,7 +11,8 @@ data class CheckInLog(
     val gameUid: String?,
     val region: String?,
     val timestamp: Long,
-    val status: String, // SUCCESS, ALREADY_SIGNED, FAILED, COOKIE_EXPIRED, NETWORK_ERROR
+    val status: String, // SUCCESS, ALREADY_SIGNED, FAILED, COOKIE_EXPIRED, NETWORK_ERROR, RESIGN_*, REDEEMED
     val message: String?,
     val retcode: Int?,
+    val redeemCount: Int? = null,
 )

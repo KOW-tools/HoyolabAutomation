@@ -42,7 +42,7 @@ class LogsViewModel(
 
                     // Apply success/failed filters
                     when (log.status) {
-                        "SUCCESS", "RESIGN_SUCCESS" -> successEnabled
+                        "SUCCESS", "RESIGN_SUCCESS", "REDEEMED" -> successEnabled
                         "FAILED", "COOKIE_EXPIRED", "NETWORK_ERROR",
                         "RESIGN_FAILED", "RESIGN_COOKIE_EXPIRED", "RESIGN_NETWORK_ERROR" -> failedEnabled
 

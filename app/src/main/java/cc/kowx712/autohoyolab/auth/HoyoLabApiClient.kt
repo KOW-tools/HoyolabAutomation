@@ -1,8 +1,10 @@
 package cc.kowx712.autohoyolab.auth
 
+import android.util.Log
 import cc.kowx712.autohoyolab.data.model.HoyoAccount
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
+import cc.kowx712.autohoyolab.data.model.RedeemResult
 import cc.kowx712.autohoyolab.data.model.ResignResult
 import cc.kowx712.autohoyolab.data.model.SignResult
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +13,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -85,6 +88,23 @@ class HoyoLabApiClient(private val cookie: String) {
         val id: Int,
         val name: String = "",
         val status: String = ""
+    )
+
+    @Serializable
+    private data class PromoCodesResponse(
+        val active: List<PromoCodeItem> = emptyList(),
+        val inactive: List<PromoCodeItem> = emptyList(),
+    )
+
+    @Serializable
+    private data class PromoCodeItem(
+        val code: String = "",
+    )
+
+    @Serializable
+    private data class RedeemResponse(
+        val retcode: Int = 0,
+        val message: String = "",
     )
 
     class CookieExpiredException(message: String) : Exception(message)
@@ -413,6 +433,101 @@ class HoyoLabApiClient(private val cookie: String) {
         }
     }
 
+    suspend fun fetchPromoCodes(game: HoyoGame): List<String>? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(game.codesUrl)
+                .addHeader("User-Agent", BROWSER_USER_AGENT)
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body.string()
+
+            if (!response.isSuccessful) {
+                return@withContext null
+            }
+
+            val promoCodes = json.decodeFromString<PromoCodesResponse>(body)
+            promoCodes.active.map { it.code }.filter { it.isNotBlank() }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchPromoCodes failed for ${game.displayName}: ${e::class.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun redeemCode(
+        game: HoyoGame,
+        uid: String,
+        region: String,
+        code: String,
+    ): RedeemResult = withContext(Dispatchers.IO) {
+        val endpoint = game.redeemUrl
+        if (endpoint == null) {
+            return@withContext RedeemResult.Failed(game.id, code, "No redeem endpoint", null)
+        }
+
+        try {
+            val url = endpoint.toHttpUrl().newBuilder()
+                .addQueryParameter("cdkey", code)
+                .addQueryParameter("uid", uid)
+                .addQueryParameter("region", region)
+                .addQueryParameter("lang", "en")
+                .addQueryParameter("game_biz", game.id)
+                .addQueryParameter("t", System.currentTimeMillis().toString())
+                .apply {
+                    if (game.redeemSlug == "genshin") {
+                        addQueryParameter("sLangKey", "en-us")
+                    }
+                }
+                .build()
+
+            val headersBuilder = Headers.Builder()
+                .add("Cookie", cookie)
+                .add("User-Agent", BROWSER_USER_AGENT)
+            if (game.redeemSlug == "themis") {
+                headersBuilder.add("Referer", "https://tot.hoyoverse.com/")
+            }
+
+            val request = Request.Builder()
+                .url(url)
+                .headers(headersBuilder.build())
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body.string()
+
+            if (!response.isSuccessful) {
+                return@withContext RedeemResult.NetworkError(game.id, code)
+            }
+
+            val redeemResponse = json.decodeFromString<RedeemResponse>(body)
+
+            when (redeemResponse.retcode) {
+                0 -> RedeemResult.Success(game.id, code)
+                -2017, -2018 -> RedeemResult.AlreadyRedeemed(game.id, code)
+                -2021, -2011 -> RedeemResult.LevelTooLow(game.id, code)
+                -2016 -> RedeemResult.Cooldown(game.id, code)
+                -1071, -1073, -1075, -100, -1000 ->
+                    RedeemResult.CredentialError(game.id, code, redeemResponse.message, redeemResponse.retcode)
+
+                else -> RedeemResult.Failed(
+                    game.id,
+                    code,
+                    redeemResponse.message,
+                    redeemResponse.retcode
+                )
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "redeemCode IO error for $code: ${e.message}")
+            RedeemResult.NetworkError(game.id, code)
+        } catch (e: Exception) {
+            Log.e(TAG, "redeemCode failed for $code: ${e::class.simpleName}: ${e.message}")
+            RedeemResult.Failed(game.id, code, e.message ?: "Unknown error", null)
+        }
+    }
+
     private fun buildHeaders(signGame: String? = null): Headers {
         val builder = Headers.Builder()
             .add("Cookie", cookie)
@@ -425,5 +540,11 @@ class HoyoLabApiClient(private val cookie: String) {
             builder.add("x-rpc-signgame", signGame)
         }
         return builder.build()
+    }
+
+    companion object {
+        private const val TAG = "HoyoLabApiClient"
+        private const val BROWSER_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
     }
 }

@@ -62,6 +62,7 @@
     <string name="log_message_network_error">Network error</string>
     <string name="log_message_resign_success">Resign completed successfully</string>
     <string name="log_message_resign_failed">Resign failed</string>
+    <string name="log_message_redeemed">Redeemed %1$d promo codes</string>
 
     <!-- Notifications -->
     <string name="notification_channel_name">Check-in Notifications</string>
