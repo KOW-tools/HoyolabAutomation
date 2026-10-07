@@ -112,6 +112,7 @@ fun HomeScreen(
     val isLoadingGames by viewModel.isLoadingGames.collectAsStateWithLifecycle()
     val lastLogs by viewModel.lastLogs.collectAsStateWithLifecycle()
     val selectedProfiles by viewModel.selectedProfiles.collectAsStateWithLifecycle()
+    val isCheckInActive by viewModel.isCheckInRunning.collectAsStateWithLifecycle()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -180,6 +181,7 @@ fun HomeScreen(
                             CheckInWork.enqueue(context)
                             CheckInNotifier(context).showManualCheckInStarted()
                         },
+                        runNowEnabled = !isCheckInActive,
                         onLogoutClick = {
                             showLogoutDialog = true
                         }
@@ -292,6 +294,7 @@ fun AccountStatusCard(
     onNavigateToSetup: () -> Unit,
     onRefreshClick: () -> Unit,
     onRunNowClick: () -> Unit,
+    runNowEnabled: Boolean,
     onLogoutClick: () -> Unit
 ) {
     when (accountState) {
@@ -450,11 +453,17 @@ fun AccountStatusCard(
                 ) {
                     SplitButtonDefaults.LeadingButton(
                         onClick = onRunNowClick,
+                        enabled = runNowEnabled,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)
                         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(stringResource(R.string.button_run_checkin_now))
+                        Text(
+                            stringResource(
+                                if (runNowEnabled) R.string.button_run_checkin_now
+                                else R.string.button_run_checkin_running
+                            )
+                        )
                     }
                     SplitButtonDefaults.TrailingButton(
                         onClick = onLogoutClick,

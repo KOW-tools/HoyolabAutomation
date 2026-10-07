@@ -3,15 +3,21 @@ package cc.kowx712.autohoyolab.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import cc.kowx712.autohoyolab.auth.HoyoLabApiClient
 import cc.kowx712.autohoyolab.data.cookie.CookieStore
 import cc.kowx712.autohoyolab.data.local.AppDatabase
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
+import cc.kowx712.autohoyolab.worker.CheckInWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -43,6 +49,15 @@ class HomeViewModel(
 
     private val _selectedProfiles = MutableStateFlow<Map<String, String>>(emptyMap()) // gameId -> gameUid
     val selectedProfiles: StateFlow<Map<String, String>> = _selectedProfiles.asStateFlow()
+
+    val isCheckInRunning: StateFlow<Boolean> = WorkManager.getInstance(applicationContext)
+        .getWorkInfosForUniqueWorkFlow(CheckInWork.UNIQUE_WORK_NAME)
+        .map { infos ->
+            infos.any {
+                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     init {
         loadAccountInfo()

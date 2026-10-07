@@ -5,6 +5,7 @@
     <string name="home_title">Hoyolab Automation</string>
     <string name="content_desc_view_logs">View logs</string>
     <string name="button_run_checkin_now">Run Now</string>
+    <string name="button_run_checkin_running">Running…</string>
     <string name="home_games">Games</string>
     <string name="home_no_games_found">No supported games found</string>
     <string name="home_loading_games">Loading games…</string>
