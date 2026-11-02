@@ -8,6 +8,11 @@ An Android app to automate your daily HoYoLAB check-ins.
 
 </div>
 
+> [!WARNING]
+> This is not an officially supported HoYoverse product.
+> You should understand the TOS of HoYoLAB before using any automation tools.
+> **Use it at your own risk**.
+
 ## Supported Games
 
 - **Genshin Impact**
