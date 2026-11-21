@@ -31,8 +31,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,6 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -70,8 +73,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -361,6 +362,15 @@ private fun LoginPage(
     val password by viewModel.password.collectAsState()
     var passwordVisible by remember { mutableStateOf(false) }
 
+    val emailState = rememberTextFieldState(
+        initialText = email,
+        onTextChanged = { viewModel.updateEmail(it.toString()) }
+    )
+    val passwordState = rememberTextFieldState(
+        initialText = password,
+        onTextChanged = { viewModel.updatePassword(it.toString()) }
+    )
+
     fun submitLogin() {
         // Keep an error visible until the user starts another attempt.
         if (loginState is SetupViewModel.LoginState.Error) {
@@ -392,42 +402,41 @@ private fun LoginPage(
             )
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { viewModel.updateEmail(it) },
+                state = emailState,
                 label = { Text(stringResource(R.string.setup_email_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
                 ),
-                singleLine = true,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 enabled = loginState !is SetupViewModel.LoginState.Loading &&
                         loginState !is SetupViewModel.LoginState.CaptchaRequired &&
                         loginState !is SetupViewModel.LoginState.EmailVerificationRequired
             )
 
-            OutlinedTextField(
-                value = password,
-                onValueChange = { viewModel.updatePassword(it) },
+            OutlinedSecureTextField(
+                state = passwordState,
                 label = { Text(stringResource(R.string.setup_password_label)) },
                 modifier = Modifier.fillMaxWidth(),
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                textObfuscationMode = if (passwordVisible) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
+                    keyboardType = if (passwordVisible) KeyboardType.PasswordVisible else KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
-                keyboardActions = KeyboardActions(
-                    onDone = { submitLogin() }
-                ),
+                onKeyboardAction = { submitLogin() },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
                             imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (passwordVisible) stringResource(R.string.setup_hide_password) else stringResource(R.string.setup_show_password)
+                            contentDescription = if (passwordVisible) {
+                                stringResource(R.string.setup_hide_password)
+                            } else {
+                                stringResource(R.string.setup_show_password)
+                            }
                         )
                     }
                 },
-                singleLine = true,
                 enabled = loginState !is SetupViewModel.LoginState.Loading &&
                         loginState !is SetupViewModel.LoginState.CaptchaRequired &&
                         loginState !is SetupViewModel.LoginState.EmailVerificationRequired

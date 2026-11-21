@@ -4,8 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -37,6 +38,11 @@ fun VerificationDialog(
     onDismiss: () -> Unit,
     onResetLoginState: () -> Unit
 ) {
+    val verificationCodeState = rememberTextFieldState(
+        initialText = verificationCode,
+        onTextChanged = { onVerificationCodeChange(it.toString()) }
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.setup_verification_title)) },
@@ -51,18 +57,15 @@ fun VerificationDialog(
                 )
 
                 OutlinedTextField(
-                    value = verificationCode,
-                    onValueChange = onVerificationCodeChange,
+                    state = verificationCodeState,
                     label = { Text(stringResource(R.string.setup_verification_code_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done
                     ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { onVerifyEmail() }
-                    ),
-                    singleLine = true,
+                    onKeyboardAction = { onVerifyEmail() },
+                    lineLimits = TextFieldLineLimits.SingleLine,
                     enabled = loginState !is SetupViewModel.LoginState.Loading
                 )
 

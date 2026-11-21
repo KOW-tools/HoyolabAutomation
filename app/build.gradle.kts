@@ -14,7 +14,13 @@ val appVersionName = rootProject.extra["appVersionName"] as String
 
 android {
     namespace = "cc.kowx712.autohoyolab"
-    compileSdk = 37
+    buildToolsVersion = "37.0.0"
+
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "cc.kowx712.autohoyolab"
