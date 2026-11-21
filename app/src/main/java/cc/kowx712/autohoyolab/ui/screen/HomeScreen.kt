@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Email
@@ -49,8 +50,9 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -67,11 +69,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -81,11 +86,13 @@ import cc.kowx712.autohoyolab.R
 import cc.kowx712.autohoyolab.data.model.HoyoGame
 import cc.kowx712.autohoyolab.data.model.HoyoGameRole
 import cc.kowx712.autohoyolab.notification.CheckInNotifier
+import cc.kowx712.autohoyolab.ui.component.ExpressiveMenu
 import cc.kowx712.autohoyolab.ui.component.ExpressiveScaffold
 import cc.kowx712.autohoyolab.ui.component.defaultSegmentedColors
 import cc.kowx712.autohoyolab.ui.component.defaultSegmentedShape
 import cc.kowx712.autohoyolab.ui.component.dialog.LogoutConfirmationDialog
 import cc.kowx712.autohoyolab.ui.component.expressiveTopAppBarColors
+import cc.kowx712.autohoyolab.ui.component.trackPressPosition
 import cc.kowx712.autohoyolab.ui.viewmodel.AccountState
 import cc.kowx712.autohoyolab.ui.viewmodel.HomeViewModel
 import cc.kowx712.autohoyolab.worker.AlarmScheduler
@@ -246,13 +253,18 @@ fun HomeScreen(
                         )
                     }
 
-                    // Group games by gameId to detect multiple servers
+                    // Group roles by gameId so each game is shown once; servers are picked in a menu
                     val gamesById = gameRoles!!.groupBy { it.first.id }
+                    val uniqueGames = gamesById.values.map { it.first() }
 
-                    itemsIndexed(gameRoles!!) { index, (game, role) ->
+                    itemsIndexed(uniqueGames) { index, (game, _) ->
                         val gameId = game.id
-                        val profiles = gamesById[gameId] ?: listOf(game to role)
-                        val hasMultipleServers = profiles.size > 1
+                        val profiles = gamesById[gameId].orEmpty()
+                        val selectedGameUid = selectedProfiles[gameId]
+                        val selectedRole = profiles
+                            .firstOrNull { it.second.gameUid == selectedGameUid }
+                            ?.second
+                            ?: profiles.first().second
 
                         Box(
                             modifier = Modifier.padding(
@@ -260,13 +272,14 @@ fun HomeScreen(
                             )
                         ) {
                             GameRoleCard(
-                                role = role,
+                                role = selectedRole,
+                                profiles = profiles.map { it.second },
                                 index = index,
-                                count = gameRoles!!.size,
-                                lastLog = lastLogs[game.id],
-                                hasMultipleServers = hasMultipleServers,
-                                isSelected = selectedProfiles[gameId] == role.gameUid,
-                                onSelectProfile = { viewModel.selectProfile(gameId, role.gameUid, role.region) },
+                                count = uniqueGames.size,
+                                lastLog = lastLogs[gameId],
+                                onSelectProfile = { selected ->
+                                    viewModel.selectProfile(gameId, selected.gameUid, selected.region)
+                                },
                             )
                         }
                     }
@@ -486,54 +499,96 @@ fun AccountStatusCard(
 @Composable
 fun GameRoleCard(
     role: HoyoGameRole,
+    profiles: List<HoyoGameRole>,
     index: Int,
     count: Int,
     lastLog: String?,
-    hasMultipleServers: Boolean,
-    isSelected: Boolean,
-    onSelectProfile: () -> Unit,
+    onSelectProfile: (HoyoGameRole) -> Unit,
 ) {
     val game = HoyoGame.fromGameBiz(role.gameBiz)
     val gameIconRes = game?.imageResId ?: R.drawable.img_hoyolab
+    val haptic = LocalHapticFeedback.current
+    val hasMultipleServers = profiles.size > 1
+    val safeIndex = profiles.indexOfFirst { it.gameUid == role.gameUid }.coerceAtLeast(0)
 
-    SegmentedListItem(
-        onClick = onSelectProfile,
-        shapes = defaultSegmentedShape(index = index, count = count),
-        colors = defaultSegmentedColors(),
-        verticalAlignment = Alignment.CenterVertically,
-        leadingContent = {
-            Image(
-                painter = painterResource(id = gameIconRes),
-                contentDescription = game?.displayName,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(MaterialTheme.shapes.medium),
-                contentScale = ContentScale.Crop
-            )
-        },
-        trailingContent = {
-            if (hasMultipleServers) {
-                RadioButton(selected = isSelected, onClick = null)
-            }
-        },
-        supportingContent = {
-            Column {
-                Text(
-                    text = "${role.nickname} • Lv.${role.level} • ${role.gameUid} • ${role.regionName}",
-                    style = MaterialTheme.typography.bodySmall,
+    var expanded by remember { mutableStateOf(false) }
+    var pressOffset by remember { mutableStateOf(IntOffset.Zero) }
+
+    Box {
+        SegmentedListItem(
+            modifier = Modifier.trackPressPosition {
+                pressOffset = IntOffset(it.x.toInt(), it.y.toInt())
+            },
+            onClick = { if (hasMultipleServers) expanded = true },
+            shapes = defaultSegmentedShape(index = index, count = count),
+            colors = defaultSegmentedColors(),
+            verticalAlignment = Alignment.CenterVertically,
+            leadingContent = {
+                Image(
+                    painter = painterResource(id = gameIconRes),
+                    contentDescription = game?.displayName,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(MaterialTheme.shapes.medium),
+                    contentScale = ContentScale.Crop
                 )
-                if (lastLog != null) {
+            },
+            trailingContent = {
+                Text(
+                    text = role.regionName,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMediumEmphasized,
+                )
+            },
+            supportingContent = {
+                Column {
                     Text(
-                        text = "Last check-in: $lastLog",
+                        text = "${role.nickname} • Lv.${role.level} • ${role.gameUid}",
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (lastLog != null) {
+                        Text(
+                            text = "Last check-in: $lastLog",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            },
+            content = {
+                Text(game?.displayName ?: "Unknown Game")
+            }
+        )
+
+        if (hasMultipleServers) {
+            ExpressiveMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                anchorOffset = pressOffset,
+            ) {
+                profiles.forEachIndexed { itemIndex, profile ->
+                    SelectableDropdownMenuItem(
+                        text = { Text(profile.regionName) },
+                        selected = itemIndex == safeIndex,
+                        onClick = {
+                            if (itemIndex in profiles.indices) {
+                                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                                onSelectProfile(profiles[itemIndex])
+                            }
+                            expanded = false
+                        },
+                        shapes = MenuDefaults.itemShape(index = itemIndex, count = profiles.size),
+                        selectedLeadingIcon = {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(MenuDefaults.LeadingIconSize),
+                            )
+                        },
                     )
                 }
             }
-        },
-        content = {
-            Text(game?.displayName ?: "Unknown Game")
         }
-    )
+    }
 }
 
 private fun formatDate(timestamp: Long): String {
